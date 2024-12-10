@@ -1444,7 +1444,7 @@ class main:
 
     def view_order_history(self):
         pass
-
+    
     def lottery_win_menu(self):
         self.clear_main_con()
         self.main_container()
@@ -2184,6 +2184,7 @@ class main:
 
     def save_prize_edits(self):
         new_data = [entry.get() for entry in self.prize_entries]
+
         selected_item = self.prize_tree.selection()
         if selected_item:
             self.prize_tree.item(selected_item, values=new_data)
@@ -2200,14 +2201,14 @@ class main:
             # อัพเดตข้อมูลในฐานข้อมูล SQLite
             cursor.execute('''
                 UPDATE results 
-                SET id=?, draw_date=?, prize_type=?, lottery_number=?, prize_amount=?
+                SET draw_date=?, prize_type=?, lottery_number=?, prize_amount=?
                 WHERE id=?
-            ''', (prize_id, draw_date, prize_type, lottery_number, prize_amount))
+            ''', (draw_date, prize_type, lottery_number, prize_amount,prize_id))
 
             conn.commit()
             conn.close()
 
-        self.edit_prize_window.destroy()            
+        self.edit_prize_window.destroy()
 
     def delete_prize(self):
         selected_item = self.prize_tree.selection()
@@ -2467,8 +2468,6 @@ class main:
         self.lottery_type_entry.delete(0, 'end')
         self.lottery_number_entry.delete(0, 'end')
         self.prize_amount_entry.delete(0, 'end')
-
-
 
 if __name__ == "__main__":
     root = tk.Tk()
