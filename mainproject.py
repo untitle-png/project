@@ -2647,8 +2647,8 @@ class main:
         self.text_header = ctk.CTkLabel(self.greyframebg, text="ข้อมูลออร์เดอร์", font=('Kanit Regular', 20))
         self.text_header.place(x=300, y=10)
         
-        order_id = selected_order[0]  
-        image_data = self.fetch_image_from_db(order_id)  
+        user_order = selected_order[1]  
+        image_data = self.fetch_image_from_db(user_order)  
         
         if image_data:
             img = Image.open(io.BytesIO(image_data))
@@ -2722,9 +2722,9 @@ class main:
         self.status_entry.insert(0, order_data[6])  
 
 
-    def fetch_image_from_db(self, order_id):
+    def fetch_image_from_db(self, user_order):
         self.connect_to_db()  
-        self.c.execute('SELECT slip FROM save WHERE id = ?', (order_id,))
+        self.c.execute('SELECT slip FROM save WHERE username_save = ?', (user_order,))
         image_data = self.c.fetchone()  
         
         if image_data:
