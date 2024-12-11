@@ -519,6 +519,7 @@ class main:
         self.root.geometry("1080x620")
         self.root.title('ALL LOTTERY')
         self.login_store()  
+    
 
     def changeColor_icon(self, page, add_icon, icon_config):
         # ไอคอนสีดำเมื่ออยู่ในหน้าเฉพาะ
@@ -556,13 +557,13 @@ class main:
             img_icon = ctk.CTkImage(img, size=(80, 40))
             icon_config.configure(image=img_icon, text_color='#2b2b2b')   
                  
-    def main_container(self,):
+    def main_container(self):
         # สร้าง Frame หลักสำหรับการแสดงข้อมูล
-        self.container = ctk.CTkFrame(self.store, width=980, height=550, corner_radius=0, fg_color='white')
+        self.container = ctk.CTkFrame(self.store, width=980, height=900, corner_radius=0, fg_color='white')
         self.container.place(x=100, y=0 )
         
         # สร้าง Canvas
-        self.scroll_canvas = tk.Canvas(self.container, bg='white',highlightthickness=0,width=980,height=500)
+        self.scroll_canvas = tk.Canvas(self.container, bg='white',highlightthickness=0,width=980,height=900)
         self.scroll_canvas.grid(row = 1 ,column =0,sticky = 'nsew')
 
         # สร้าง Scrollbar
@@ -578,15 +579,17 @@ class main:
 
         # สร้าง Frame ภายใน Canvas
         self.main_con = tk.Frame(self.scroll_canvas, bg='#ffffff')
+        self.cart_page_con = tk.Frame(self.scroll_canvas, bg='#ffffff')
 
         self.scroll_canvas.create_window((0, 0), window=self.main_con, anchor='nw')
+        self.scroll_canvas.create_window((0, 0), window= self.cart_page_con, anchor='nw')
 
         # ปรับ scrollregion อัตโนมัติเมื่อขนาดของ main_con เปลี่ยนแปลง
         def update_scroll_region(event):
             self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all"))
 
         self.main_con.bind("<Configure>", update_scroll_region)
-        
+        self.cart_page_con.bind("<Configure>", update_scroll_region)
         # ฟังก์ชันสำหรับการเลื่อนด้วย Scroll Wheel
         def on_mouse_scroll(event):
             self.scroll_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
@@ -598,7 +601,7 @@ class main:
         
         self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
         self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
-        self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows        
+        self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows         
 
     def home_page(self):
         self.changeColor_icon(self.home_page, "home", self.home_btn)
@@ -914,7 +917,7 @@ class main:
         self.changeColor_icon(self.Mysave_page, "cart", self.cart_btn)
         self.clear_main_con()
         self.main_container()
-
+    
         # ดึงข้อมูลการสั่งซื้อจากฐานข้อมูล
         try:
             self.c.execute('SELECT User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status FROM orders WHERE User_orders = ?', (self.username,))
@@ -922,9 +925,9 @@ class main:
         except Exception as e:
             print(f"Error fetching orders: {e}")
             orders_data = []
-    
+
         # สร้าง Frame สำหรับ Cart List
-        self.cartList_con = ctk.CTkFrame(self.main_con, fg_color='#2b2b2b', width=500, height=200, corner_radius=15)
+        self.cartList_con = ctk.CTkFrame(self.cart_page_con, fg_color='#2b2b2b', width=500, height=200, corner_radius=15)
         self.cartList_con.grid(row=0, column=0,padx=245,sticky= 'nsew',pady = 5)
 
         # สร้าง Canvas สำหรับเลื่อนแนวนอน
@@ -947,9 +950,19 @@ class main:
         self.cart_items_frame.bind("<Configure>", update_scroll_region)
         
         # สร้าง container สำหรับข้อมูลการสั่งซื้อ
-        list_orders_con = ctk.CTkFrame(self.main_con, width=500 ,fg_color='#ebe8e8'
+        list_orders_con = ctk.CTkFrame(self.cart_page_con, width=500 ,fg_color='#ebe8e8'
                                        ,border_width=2,border_color='#cfcfcf')
         list_orders_con.grid(row=1, column=0, pady=10,padx=245,sticky= 'nsew')
+        
+        Allorders_list_con = ctk.CTkFrame(
+            list_orders_con, width=480, fg_color='#ebe8e8'
+        )
+        Allorders_list_con.grid(row=1, column=0, pady=5, padx=5, sticky='nsew')
+
+        # ตั้งค่าให้ Allorders_list_con ยืดขยายได้
+        Allorders_list_con.rowconfigure(0, weight=1)
+        Allorders_list_con.columnconfigure(0, weight=1) 
+        
         # แสดงรายการสินค้าในตะกร้า
         for i, order in enumerate(orders_data):
             username_data, num_lottery, img_lot, amount, price, cash, status = order
@@ -975,24 +988,17 @@ class main:
                                       text_color='black')
             list_label.grid(row=0, column=0,padx=125,pady= 5,sticky= 'nsew' )
             
-            # ตั้งค่าให้ list_orders_con ขยายแถวและคอลัมน์ที่ Allorders_list_con อยู่
-            list_orders_con.rowconfigure(0, weight=1)   # กำหนดแถว 1 ให้ขยาย
-            list_orders_con.columnconfigure(1, weight=1)  # กำหนดคอลัมน์ 0 ให้ขยาย
+            orders_list_con = ctk.CTkFrame(
+                Allorders_list_con, width=480, height=200, fg_color='#ffffff',
+                border_width=1, border_color='#b8b8b8'
+            )
+            orders_list_con.grid(
+                row=i, column=0, pady=(0, 10), padx=0, sticky='nsew'
+            )
 
-            # Frame สำหรับรายละเอียดการสั่งซื้อทั้งหมด
-            Allorders_list_con = ctk.CTkFrame(list_orders_con, width=480, fg_color='#ebe8e8'
-                                             )
-            Allorders_list_con.grid(row=1, column=0,pady=5,padx=10,sticky= 'nsew')
-
-            # Frame สำหรับรายละเอียดการสั่งซื้อเฉพาะรายการ
-            orders_list_con = ctk.CTkFrame(Allorders_list_con, width=480, height=200, 
-                                        fg_color='#ffffff',
-                                        border_width=1,border_color='#b8b8b8')
-            orders_list_con.grid(row=i, column=0,columnspan = 2,pady=0,padx =0,sticky ='nsew')           
-
-            # ตั้งค่าให้ Allorders_list_con ขยายแถวและคอลัมน์ที่ orders_list_con อยู่
-            Allorders_list_con.columnconfigure(3, weight=1)  # กำหนดคอลัมน์ 0 ให้ขยาย
-
+            # ตั้งค่าให้ orders_list_con ขยายได้
+            Allorders_list_con.rowconfigure(i, weight=2)  # ให้แถวที่ i ขยาย
+            orders_list_con.columnconfigure(i, weight=2)  # คอลัมน์ 3 ขยาย
 
             # เพิ่มปุ่มลบ พร้อมคำสั่งลบสินค้าออกจากตะกร้า
             delete_btn = ctk.CTkButton(orders_list_con, width=40, height=40, corner_radius=5,
@@ -1019,17 +1025,18 @@ class main:
             price_label.grid(row=0, column=3, sticky='e',padx =10,)
             orders_list_con.columnconfigure(3, weight=1)
             
-            total_price_text = ctk.CTkLabel(Allorders_list_con, text='ยอดรวม',
+            total_price_text = ctk.CTkLabel(list_orders_con, text='ยอดรวม',
                                                 font=('Prompt', 16),
                                                 text_color='black', anchor='w')
             total_price_text.grid(row=2, column=0, sticky='w',padx =10,pady=10)
             
-            total_price_label = ctk.CTkLabel(Allorders_list_con, text=f'{price} บาท',
+            
+            total_price_label = ctk.CTkLabel(list_orders_con, text=f'{price} บาท',
                                                 font=('Prompt', 16),
                                                 text_color='black', anchor='e')
             total_price_label.grid(row=2, column=1, sticky='e',padx =10,pady=10)
             
-            pay_btn = ctk.CTkButton(Allorders_list_con
+            pay_btn = ctk.CTkButton(list_orders_con
                                     ,text = 'ชำระเงิน',font = ('Prompt',16)
                                     ,width=480,height=40,
                                     text_color='white',fg_color='#e32320',
@@ -1038,76 +1045,130 @@ class main:
                                     )
             pay_btn.grid(row = 3,column =0,columnspan = 2, padx =10 ,pady =5,sticky ='nsew')
 
+
         # ปิดการเชื่อมต่อฐานข้อมูล
         self.conn.close()
         
     def payment_ui(self):
-        self.conn = sqlite3.connect('data.db')
-        self.c = self.conn.cursor()
-        self.c.execute('SELECT * FROM orders WHERE User_orders = ?', (self.username,))
-        d = self.c.fetchone()  # ใช้ fetchone() แทน fetchall() หากดึงข้อมูลรายการเดียว
+            self.conn = sqlite3.connect('data.db')
+            self.c = self.conn.cursor()
+            self.c.execute('SELECT * FROM orders WHERE User_orders = ?', (self.username,))
+            d = self.c.fetchone()  # ใช้ fetchone() แทน fetchall() หากดึงข้อมูลรายการเดียว
+            
+            # สร้างอินสแตนซ์
+            api_pay = api_payment.API_PAYMENT()
+            
+            # 1. รับค่า access_token ที่ได้จาก API
+            access_token = api_pay.get_oauth_token()
+            if access_token:
+                # ข้อมูลสำหรับการสร้าง QR Code
+                biller_id = "838570584253024"  # รหัส Biller
+                price = d[5]  # จำนวนเงิน ควรตรวจสอบดัชนีของ d ก่อนใช้
+                ref1 = "TESTREF1"  # หมายเลขอ้างอิง
+                ref2 = "TESTREF2"  # หมายเลขอ้างอิง
+
+                # 2. ส่งข้อมูลเพื่อสร้าง QR CODE ชำระเงิน
+                qr_image_base64 = api_pay.create_qr_code(access_token, biller_id, price, ref1, ref2)
+
+                def select_slip():
+                    global img_slip
+                    file_path = filedialog.askopenfilename(
+                    title="แนบสลิป",
+                    filetypes=(("JPEG files", "*.jpg"), ("All files", "*.*")))
         
-        # สร้างอินสแตนซ์
-        api_pay = api_payment.API_PAYMENT()
-        
-        # 1. รับค่า access_token ที่ได้จาก API
-        access_token = api_pay.get_oauth_token()
-        if access_token:
-            # ข้อมูลสำหรับการสร้าง QR Code
-            biller_id = "838570584253024"  # รหัส Biller
-            price = d[5]  # จำนวนเงิน ควรตรวจสอบดัชนีของ d ก่อนใช้
-            ref1 = "TESTREF1"  # หมายเลขอ้างอิง
-            ref2 = "TESTREF2"  # หมายเลขอ้างอิง
-
-            # 2. ส่งข้อมูลเพื่อสร้าง QR CODE ชำระเงิน
-            qr_image_base64 = api_pay.create_qr_code(access_token, biller_id, price, ref1, ref2)
-
-            if qr_image_base64:  # ตรวจสอบว่ามีข้อมูล Base64
-                # 3. แสดงหน้าชำระเงิน
-                self.payment_page = tk.Toplevel(self.store)
-                self.payment_page.geometry('400x400')
-                self.payment_page.title('ชำระเงิน')
-
-                OR_IMG = api_pay.save_qr_image_from_base64(qr_image_base64)  # ดึงรูป QR Code ที่สร้างได้
-                if OR_IMG:
-                    QR_LABEL = tk.Label(self.payment_page, image=OR_IMG)
-                    QR_LABEL.image = OR_IMG  # เก็บอ้างอิงเพื่อไม่ให้ภาพถูกเก็บขยะ
-                    QR_LABEL.pack()
+                    if file_path:
+                        self.file_path = file_path
+                        img = Image.open(file_path)
+                        img = img.resize((50, 100))  # ปรับขนาดภาพให้พอดีกับหน้าจอ
+                        img_slip = ctk.CTkImage(img, size=(200, 260))
+                        show_slip = ctk.CTkLabel(self.payment_page,image=img_slip,width=200,height=260)
+                        show_slip.grid(row = 2,column = 0,sticky= 'nsew')
+                        
+                        confirm_btn = ctk.CTkButton(self.payment_page,text='ยืนยันการชำระเงิน',font=('Prompt',14)
+                                                    ,height=40,width=20,
+                                                    command=self.clear_stock)
+                        confirm_btn.grid(row =3,column = 0,sticky= 'nsew')
+                
+                if qr_image_base64:  # ตรวจสอบว่ามีข้อมูล Base64
+                    # 3. แสดงหน้าชำระเงิน
+                    self.payment_page = tk.Toplevel(self.store)
+                    self.payment_page.geometry('400x600')
+                    self.payment_page.title('ชำระเงิน')
+                    
+                    OR_IMG = api_pay.save_qr_image_from_base64(qr_image_base64)  # ดึงรูป QR Code ที่สร้างได้
+                    if OR_IMG:
+                        QR_LABEL = tk.Label(self.payment_page, image=OR_IMG)
+                        QR_LABEL.image = OR_IMG  # เก็บอ้างอิงเพื่อไม่ให้ภาพถูกเก็บขยะ
+                        QR_LABEL.grid(row = 0,column=0,sticky= 'nsew')
+                        
+                        file_btn = ctk.CTkButton(self.payment_page,text='แนบสลิป', font=('Kanit Regular', 16),
+                                             height=40,width=20,
+                                             command=select_slip)
+                        file_btn.grid(row = 1,column = 0,sticky= 'nsew')
+                        
+                       
+                    else:
+                        print("Failed to load QR Code image.")
                 else:
-                    print("Failed to load QR Code image.")
+                    print("Failed to create QR Code.")
             else:
-                print("Failed to create QR Code.")
-        else:
-            print("Failed to obtain access token.")
+                print("Failed to obtain access token.")
 
-        # 4. เมื่อชำระเงินเสร็จ ให้ปิดหน้าต่างชำระเงิน
-        # เพิ่มการตรวจสอบด้วย biller_id, ref1, transaction_date
-        transaction_date = "2020-01-01"  # ตัวอย่างวันที่ (ปรับเป็นค่าจริงตามต้องการ)
-        if api_pay.payment_success() == "Success":
-            self.payment_page.destroy()
-
-        self.conn.close()
+            self.conn.close()
 
     def delete_item_from_cart(self, order):
         try:
             # ลบรายการออกจากฐานข้อมูล
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
-            self.c.execute('DELETE FROM orders WHERE User_orders = ? AND orders_lottery_num = ?', (self.username, order[1]))
-            self.conn.commit()
-            self.conn.close()
             
-            # รีเฟรชหน้าตะกร้า
-            self.cart_page()
+            self.c.execute('SELECT * FROM orders')
+            check_orders = self.c.fetchall()
+            
+            if check_orders != None:
+                self.c.execute('DELETE FROM orders WHERE User_orders = ? AND orders_lottery_num = ?', (self.username, order[1]))
+                self.conn.commit()
+
+                # รีเฟรชหน้าตะกร้า
+                self.cart_page()
+            else:
+                self.clear_main_con()
         except Exception as e:
             print(f"Error deleting item: {e}")
-         
+        finally:
+            self.conn.close()
+
+    def clear_stock(self):
+        self.conn = sqlite3.connect('data.db')
+        self.c = self.conn.cursor()
+        try:
+        
+            self.clear_main_con()
+
+            
+            self.c.execute("SELECT status FROM orders WHERE status = ?", ('ยังไม่จ่าย',))
+            d = self.c.fetchone()
+            print("ยังไม่ชำระ")
+            '''
+            if d:
+                update_status = 'ชำระเงินแล้ว'
+                self.c.execute("UPDATE orders SET status = ? WHERE status = ?", (update_status, 'ยังไม่จ่าย'))
+                self.conn.commit()
+                print("ชำระแล้ว")
+            '''  
+        except Exception as e:
+            print(f"An error occurred: {e}")
+        finally:
+            self.conn.close()
+        
+                 
     def Mysave_page(self):
         self.conn = sqlite3.connect('data.db')
         self.c = self.conn.cursor()
         self.changeColor_icon(self.Mysave_page,"save",self.save_btn)
         self.clear_main_con()
         self.main_container()
+ 
        
     def profile_page(self):
         self.conn = sqlite3.connect('data.db')
@@ -1642,10 +1703,12 @@ class main:
 
     def logout_admin(self):
         self.admin_store.destroy()  
+        '''
         self.root = tk.Tk() 
         self.root.geometry("1080x620")
         self.root.title('ALL LOTTERY')
         self.login_store()
+        '''
 
     def admin_page(self):
         # สร้าง Container หลักสำหรับ Admin Page
@@ -1897,12 +1960,15 @@ class main:
             conn = sqlite3.connect('data.db')
             cursor = conn.cursor()
 
-            cursor.execute('DELETE FROM lottery WHERE id=?', (lottery_id))
+            cursor.execute('DELETE FROM lottery WHERE id=?', (lottery_id,))
+
 
             conn.commit()
             conn.close()
 
             self.lottery_tree.delete(selected_lottery)
+            self.refresh_lottery_list() 
+            
 
     def manage_user_page(self):
         self.clear_admin_main_con() 
