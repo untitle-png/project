@@ -64,11 +64,11 @@ class main:
             self.conn.commit()
 
             self.c.execute('''CREATE TABLE IF NOT EXISTS results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            draw_date DATE NOT NULL,  
-            prize_type TEXT NOT NULL, 
-            lottery_number TEXT NOT NULL,    
-            prize_amount INTEGER     
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                draw_date DATE NOT NULL,  
+                prize_type TEXT NOT NULL, 
+                lottery_number TEXT NOT NULL,    
+                prize_amount INTEGER     
             )''')
             self.conn.commit()
 
@@ -152,11 +152,11 @@ class main:
     def about(self):
         self.about_window = tk.Toplevel(self.root)
         self.about_window.title("เกี่ยวกับโปรแกรม")
-        self.about_window.geometry("320x320")
+        self.about_window.geometry("500x500")
         self.about_window.configure(bg="white")
 
         dev_image = Image.open(r'D:\python_finalproject\img\icon\admin\dev.png')
-        dev_image_resized = dev_image.resize((300, 300), Image.LANCZOS)  
+        dev_image_resized = dev_image.resize((400, 400), Image.LANCZOS)  
         dev_image_tk = ImageTk.PhotoImage(dev_image_resized)
 
         dev_label = tk.Label(self.about_window, image=dev_image_tk, bg="white")
@@ -181,7 +181,6 @@ class main:
             self.c.execute("SELECT * FROM users WHERE username = ? AND password = ?", (self.username, password))
             result = self.c.fetchone()
             
-
             if result:
                 self.user_id = result[0]
                 self.user_role = result[11]  # ตรวจสอบสิทธิ์การเข้าถึง
@@ -241,7 +240,6 @@ class main:
         self.dob_day.place(x=255, y=237,width=52) 
         
         self.dob_month_Option = tk.StringVar()
-
        
         self.dob_month = ttk.Combobox(
             master=self.signup_ui,
@@ -332,6 +330,10 @@ class main:
 
         if not phone.isdigit() or len(phone) != 10:
             tkinter.messagebox.showerror("Error", "กรุณากรอกเบอร์โทรศํพท์ให้ถูกต้อง")
+            return
+
+        if not len(self.address) <= 150:
+            tkinter.messagebox.showerror("Error", "กรุณากรอกที่อยู่ไม่เกิน 150 อักษร")
             return
 
         if not self.bank_number.isdigit() or not (10 <= len(self.bank_number) <= 12):
@@ -501,7 +503,8 @@ class main:
             font=('Kanit Medium',14),
             compound=TOP,
             bg_color='#e32320',
-            hover_color='#e32320'  # เปลี่ยนสีเมื่อ hover
+            hover_color='#e32320',
+            command=self.logout
            )
         logout_btn.place(x=0,y=500)
         
@@ -509,7 +512,14 @@ class main:
 
 
         self.home_page()
-        
+
+    def logout(self):
+        self.store.destroy()  
+        self.root = tk.Tk() 
+        self.root.geometry("1080x620")
+        self.root.title('ALL LOTTERY')
+        self.login_store()  
+
     def changeColor_icon(self, page, add_icon, icon_config):
         # ไอคอนสีดำเมื่ออยู่ในหน้าเฉพาะ
         icon_settings = {
@@ -589,145 +599,123 @@ class main:
         self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
         self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
         self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows        
-        
-        
+
     def home_page(self):
-        self.changeColor_icon(self.home_page,"home",self.home_btn)
+        self.changeColor_icon(self.home_page, "home", self.home_btn)
         self.main_container()
-        self.header_frame = ctk.CTkFrame(self.container,fg_color='#2b2b2b'
-                                         ,width=1920,height=50,
-                                         corner_radius=0)
-        self.header_frame.grid(row  = 0,column = 0 ,sticky='nsew')
-                               
-        self.ads_frame = ctk.CTkFrame(self.main_con,fg_color='#b91c1c',
-                                      width=400,height=250,
-                                      corner_radius=0)
-        self.ads_frame.grid(row =0,column = 0,pady= 0,sticky = 'nsew')
+
+        self.header_frame = ctk.CTkFrame(self.container, fg_color='#2b2b2b', width=1920, height=50, corner_radius=0)
+        self.header_frame.grid(row=0, column=0, sticky='nsew')
+
+        self.ads_frame = ctk.CTkFrame(self.main_con, fg_color='#b91c1c', width=450, height=350, corner_radius=0)
+        self.ads_frame.grid(row=0, column=0, pady=0, sticky='nsew')
+
         
-        self.ads_item_con = ctk.CTkFrame(self.ads_frame,fg_color='#b91c1c',width=800 ,height=250,corner_radius=0)
-        self.ads_item_con.grid(row = 1 ,column = 0)
-        
-        # สร้าง Frame สำหรับปุ่มหวย
+        self.ads_item_con = ctk.CTkFrame(self.ads_frame, fg_color='#b91c1c', width=450, height=350, corner_radius=0)
+        self.ads_item_con.grid(row=0, column=0, sticky='nsew')
+        '''
+        ad_image = Image.open(r'D:\python_finalproject\img\icon\admin\viewlottery.png')  
+        ad_icon = ctk.CTkImage(ad_image, size=(1920, 350))  
+        ad_btn = ctk.CTkButton(
+            self.ads_item_con,
+            fg_color='#b91c1c',   
+            width=740,  
+            height=136,  
+            image=ad_icon,
+            hover_color='#b91c1c',
+            text=''  
+        )
+        ad_btn.grid(row=0, column=0, padx=20, pady=20)  
+        '''
+        # ส่วนของปุ่มค้นหา
         self.button_frame = tk.Frame(self.main_con, bg='#ffffff')
-        self.button_frame.grid(row=2, column=0,padx=20,sticky = NSEW,pady = 8)  
-       
-        self.search_con = ctk.CTkFrame(self.button_frame,width=1080,height=40,fg_color='white')
-        self.search_con.grid(row = 0 , column= 3,sticky =NSEW,pady= 8,padx =20)
-        et_search = ctk.CTkEntry(
-                                self.search_con,
-                                font=('Prompt', 14),          
-                                width=200,
-                                height=32,
-                                fg_color='white',                  
-                                bg_color='white',
-                                border_color='#cfcfcf',
-                                text_color='black',
-                                corner_radius=10)
-        et_search.place(x = 0,y=3) 
-        
+        self.button_frame.grid(row=2, column=0, padx=20, sticky=NSEW, pady=8)
+
+        self.search_con = ctk.CTkFrame(self.button_frame, width=1080, height=40, fg_color='white')
+        self.search_con.grid(row=0, column=3, sticky=NSEW, pady=8, padx=20)
+        et_search = ctk.CTkEntry(self.search_con, font=('Prompt', 14), width=200, height=32, fg_color='white',
+                                bg_color='white', border_color='#cfcfcf', text_color='black', corner_radius=10)
+        et_search.place(x=0, y=3)
+
         def findlot():
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
-            
+
             try:
                 search = et_search.get()
-                self.c.execute('SELECT img_lottery,amount,price,type_lottery,num_id FROM lottery WHERE num_id = ?',(search,))
+                self.c.execute('SELECT img_lottery,amount,price,type_lottery,num_id FROM lottery WHERE num_id = ?',
+                            (search,))
                 show_search = self.c.fetchall()
-                                
-                if show_search:    
+
+                if show_search:
                     if self.oddLot:
                         self.oddlottery_data = show_search
-                       
+
                     elif self.pairLot:
                         self.pairlottery_data = show_search
-                       
+
                     elif self.allLot:
                         self.alllottery_data = show_search
-                    
+
                 else:
                     self.clear_frameItem_con()
-                    not_fond= tk.Label(self.frame_item_con,text="ไม่พบลอตเตอรี่",
-                                       font = ('Prompt',16),fg= 'red',bg='white')
-                    not_fond.place(x= 330,y= 20)
-                     
-                                       
+                    not_fond = tk.Label(self.frame_item_con, text="ไม่พบลอตเตอรี่", font=('Prompt', 16), fg='red', bg='white')
+                    not_fond.place(x=330, y=20)
+
             except Exception as e:
                 print(f'can not find : {e}')
             finally:
                 self.conn.close()
-                
+
         def random_lottery():
-                self.conn = sqlite3.connect('data.db')
-                self.c = self.conn.cursor()
-                
-                try:                   
-                    self.c.execute('SELECT img_lottery,amount,price,type_lottery,num_id FROM lottery')
-                    radom = self.c.fetchall()
-                    random_lottery = random.choice(radom)
-                                                                
-                    if random_lottery:
-                        if self.oddLot:
-                            
-                            self.oddlottery_data = [random_lottery]
-                        elif self.pairLot:
-                            
-                            self.pairlottery_data  =  [random_lottery]
-                        elif self.allLot:
-                            
-                            self.alllottery_data = [random_lottery]    
-                                                
-                except Exception as e:
-                    print(f'can not find : {e}')
-                finally:
-                    self.conn.close()
-            
-        search_btn = ctk.CTkButton(self.search_con,text='ค้นหา',font=('Prompt',12),
-                                        fg_color='#2b2b2b',
-                                        width=50,height=32,
-                                        hover_color="#000000",
-                                        command=findlot)
-        search_btn.place(x = 210, y = 3 ) 
-        
-        random_btn = ctk.CTkButton(self.search_con,text='สุ่ม',font=('Prompt',12),
-                                        fg_color='#2b2b2b',
-                                        width=50,height=32,
-                                        hover_color="#000000",
-                                        command= random_lottery) 
-        random_btn.place(x = 270, y = 3 )    
+            self.conn = sqlite3.connect('data.db')
+            self.c = self.conn.cursor()
+
+            try:
+                self.c.execute('SELECT img_lottery,amount,price,type_lottery,num_id FROM lottery')
+                radom = self.c.fetchall()
+                random_lottery = random.choice(radom)
+
+                if random_lottery:
+                    if self.oddLot:
+                        self.oddlottery_data = [random_lottery]
+                    elif self.pairLot:
+                        self.pairlottery_data = [random_lottery]
+                    elif self.allLot:
+                        self.alllottery_data = [random_lottery]
+
+            except Exception as e:
+                print(f'can not find : {e}')
+            finally:
+                self.conn.close()
+
+        search_btn = ctk.CTkButton(self.search_con, text='ค้นหา', font=('Prompt', 12),
+                                fg_color='#2b2b2b', width=50, height=32, hover_color="#000000", command=findlot)
+        search_btn.place(x=210, y=3)
+
+        random_btn = ctk.CTkButton(self.search_con, text='สุ่ม', font=('Prompt', 12),
+                                fg_color='#2b2b2b', width=50, height=32, hover_color="#000000", command=random_lottery)
+        random_btn.place(x=270, y=3)
 
         # ปุ่มหวย - วางใน button_frame
-        self.allLot_btn = ctk.CTkButton(self.button_frame, text='ทั้งหมด', font=('Prompt', 12),
-                                        width=84, height=35,
-                                        fg_color='#e32320',
-                                        hover_color='#e32320',
-                                        text_color='white',
-                                        command=self.allLot)
-        self.allLot_btn.grid(row=0, column=0, padx=5)  # ใช้ grid แทน place
+        self.allLot_btn = ctk.CTkButton(self.button_frame, text='ทั้งหมด', font=('Prompt', 12), width=84, height=35,
+                                        fg_color='#e32320', hover_color='#e32320', text_color='white', command=self.allLot)
+        self.allLot_btn.grid(row=0, column=0, padx=5)
 
-        self.pairLot_btn = ctk.CTkButton(self.button_frame, text='หวยชุด', font=('Prompt', 12),
-                                        width=84, height=35,
-                                        fg_color='#cfcfcf',
-                                        hover_color='#cfcfcf',
-                                        text_color='#2b2b2b',
-                                        command=self.pairLot)
-        self.pairLot_btn.grid(row=0, column=1, padx=5)  # ใช้ grid แทน place
+        self.pairLot_btn = ctk.CTkButton(self.button_frame, text='หวยชุด', font=('Prompt', 12), width=84, height=35,
+                                        fg_color='#cfcfcf', hover_color='#cfcfcf', text_color='#2b2b2b', command=self.pairLot)
+        self.pairLot_btn.grid(row=0, column=1, padx=5)
 
-        self.oddLot_btn = ctk.CTkButton(self.button_frame, text='หวยเดี่ยว', font=('Prompt', 12),
-                                        width=84, height=35,
-                                        fg_color='#cfcfcf',
-                                        hover_color='#cfcfcf',
-                                        text_color='#2b2b2b',
-                                        command=self.oddLot)
-        self.oddLot_btn.grid(row=0, column=2, padx=5)  # ใช้ grid แทน place
-        
-        
-        self.frame_item_con = ctk.CTkFrame(self.main_con,fg_color='white',
-                                           width=900,height=1000) 
-        self.frame_item_con.grid(row = 3,column =0,
-                                 sticky = NSEW,padx = 5)        
-        
+        self.oddLot_btn = ctk.CTkButton(self.button_frame, text='หวยเดี่ยว', font=('Prompt', 12), width=84, height=35,
+                                        fg_color='#cfcfcf', hover_color='#cfcfcf', text_color='#2b2b2b', command=self.oddLot)
+        self.oddLot_btn.grid(row=0, column=2, padx=5)
+
+        # Frame สำหรับแสดงรายการ
+        self.frame_item_con = ctk.CTkFrame(self.main_con, fg_color='white', width=900, height=1000)
+        self.frame_item_con.grid(row=3, column=0, sticky=NSEW, padx=5)
+
         self.allLot()
-        
+
         
     def allLot(self):
         self.clear_frameItem_con()
@@ -776,8 +764,6 @@ class main:
             return
         
         self.store_loterry(self.pairlottery_data)
-        
-
 
     def oddLot(self):
         
@@ -797,7 +783,6 @@ class main:
         except Exception as e:
             print(f"Error fetching data: {e}")
             return
-        
 
         if not self.oddlottery_data:
             print("No images or lottery types found in the database.")
@@ -1152,7 +1137,7 @@ class main:
         userid_label = ctk.CTkLabel(user_info_card, text=f"ID: {id}", font=('Kanit Regular', 32))
         userid_label.place(x=200, y=100)
 
-        user_info = ctk.CTkFrame(self.main_con, fg_color='#6b6969', width=600, height=300, corner_radius=15)
+        user_info = ctk.CTkFrame(self.main_con, fg_color='#6b6969', width=600, height=400, corner_radius=15)
         user_info.grid(row=1, column=0, padx=200,pady=20)
 
         self.c.execute("SELECT fname FROM users WHERE id = ?",(self.user_id,))  
@@ -1196,21 +1181,30 @@ class main:
         phone_label.place(x=30, y=180)
         phone_label2 = ctk.CTkLabel(user_info, text=f"{phone}", font=('Kanit Regular', 20), text_color='white')
         phone_label2.place(x=150, y=180)
-
-
+        '''
         self.c.execute("SELECT Address FROM users WHERE id = ?",(self.user_id,))  
         Address = self.c.fetchone()[0]  
         Address_label = ctk.CTkLabel(user_info, text=f"ที่อยู่ :", font=('Kanit Regular', 20),text_color='#cfcfcf')
         Address_label.place(x=30, y=210)
         Address_label2 = ctk.CTkLabel(user_info, text=f"{Address}", font=('Kanit Regular', 20), text_color='white')
         Address_label2.place(x=100, y=210)
+        '''
+        self.c.execute("SELECT Address FROM users WHERE id = ?", (self.user_id,))
+        Address = self.c.fetchone()[0]
+        Address_label = ctk.CTkLabel(user_info, text=f"ที่อยู่ :", font=('Kanit Regular', 20), text_color='#cfcfcf')
+        Address_label.place(x=30, y=210)
+        Address_label2 = ctk.CTkTextbox(user_info, width=400, height=60, font=('Kanit Regular', 20), text_color='white', fg_color="#6b6969")
+        Address_label2.insert("0.0", Address) 
+        Address_label2.configure(state="disabled")  
+        Address_label2.place(x=100, y=210)
+        
                 
         edit_profile_button = ctk.CTkButton(user_info, text="แก้ไขโปรไฟล์", 
                                             width=150, height=30, 
                                             fg_color='#2b2b2b', text_color='white',
                                             hover_color='#000000',
                                             command=self.edit_profile)
-        edit_profile_button.place(x=30, y=250)  
+        edit_profile_button.place(x=30, y=350)  
 
         
         view_lottery_button = ctk.CTkButton(user_info, text="ตรวจรางวัลหวย", 
@@ -1218,7 +1212,7 @@ class main:
                                            fg_color='#2b2b2b', text_color='white',
                                            hover_color='#000000',
                                            command=self.lottery_win_menu)
-        view_lottery_button.place(x=200, y=250) 
+        view_lottery_button.place(x=200, y=350) 
         
     def edit_profile(self):
         self.clear_main_con()  
@@ -1276,11 +1270,12 @@ class main:
         phone_entry.place(x=150, y=330)
         phone_entry.insert(0, user_data[5])
 
+        
         address_label = ctk.CTkLabel(edit_frame, text="ที่อยู่ :", font=('Kanit Regular', 16), text_color='#333333')
         address_label.place(x=50, y=380)
-        address_entry = ctk.CTkEntry(edit_frame, width=400, font=('Kanit Regular', 16))
+        address_entry = ctk.CTkTextbox(edit_frame, width=400, height=100, font=('Kanit Regular', 16))
         address_entry.place(x=150, y=380)
-        address_entry.insert(0, user_data[6])
+        address_entry.insert("1.0", user_data[6])  
 
         save_button = ctk.CTkButton(
         edit_frame,
@@ -1292,28 +1287,27 @@ class main:
         command=lambda: self.save_profile(
             fname_entry, lname_entry, email_entry, bank_number_entry, bank_name_entry, phone_entry, address_entry
         ))
-        save_button.place(x=150, y=450)
-
+        save_button.place(x=150, y=500)
 
         cancel_button = ctk.CTkButton(edit_frame, text="ยกเลิก", width=150, height=40,
                                     fg_color='#dc3545', hover_color='#c82333',
                                     command=self.profile_page)
-        cancel_button.place(x=350, y=450)
+        cancel_button.place(x=350, y=500)
 
         old_password_label = ctk.CTkLabel(edit_frame, text="รหัสผ่านเดิม :", font=('Kanit Regular', 16), text_color='#333333')
-        old_password_label.place(x=50, y=530)
+        old_password_label.place(x=50, y=630)
         old_password_entry = ctk.CTkEntry(edit_frame, width=400, font=('Kanit Regular', 16), show="*")
-        old_password_entry.place(x=150, y=530)
+        old_password_entry.place(x=150, y=630)
 
         new_password_label = ctk.CTkLabel(edit_frame, text="รหัสผ่านใหม่ :", font=('Kanit Regular', 16), text_color='#333333')
-        new_password_label.place(x=50, y=570)
+        new_password_label.place(x=50, y=670)
         new_password_entry = ctk.CTkEntry(edit_frame, width=400, font=('Kanit Regular', 16), show="*")
-        new_password_entry.place(x=150, y=570)
+        new_password_entry.place(x=150, y=670)
 
         confirm_password_label = ctk.CTkLabel(edit_frame, text="ยืนยันรหัสผ่าน :", font=('Kanit Regular', 16), text_color='#333333')
-        confirm_password_label.place(x=50, y=610)
+        confirm_password_label.place(x=50, y=710)
         confirm_password_entry = ctk.CTkEntry(edit_frame, width=400, font=('Kanit Regular', 16), show="*")
-        confirm_password_entry.place(x=150, y=610)
+        confirm_password_entry.place(x=150, y=710)
 
 
         save_password_button = ctk.CTkButton(
@@ -1326,13 +1320,13 @@ class main:
         command=lambda: self.save_password(
             old_password_entry, new_password_entry, confirm_password_entry
         ))
-        save_password_button.place(x=150, y=650)
+        save_password_button.place(x=150, y=750)
 
 
         cancel_button = ctk.CTkButton(edit_frame, text="ยกเลิก", width=150, height=40,
                                     fg_color='#dc3545', hover_color='#c82333',
                                     command=self.profile_page)
-        cancel_button.place(x=350, y=650)
+        cancel_button.place(x=350, y=750)
   
     def save_profile(self, fname_entry, lname_entry, email_entry, bank_number_entry, bank_name_entry, phone_entry, address_entry):
         fname = fname_entry.get()
@@ -1341,7 +1335,8 @@ class main:
         bank_number = bank_number_entry.get()
         bank_name = bank_name_entry.get()
         phone = phone_entry.get()
-        address = address_entry.get()
+        address = address_entry.get("1.0", "end").strip()
+
 
         self.conn = sqlite3.connect('data.db')
         self.c = self.conn.cursor()
@@ -1352,6 +1347,22 @@ class main:
         if stored_data is None:
             tkinter.messagebox.showerror("ข้อผิดพลาด", "ไม่พบข้อมูลผู้ใช้ในระบบ")
             return
+
+        if not phone.isdigit() or len(phone) != 10:
+            tkinter.messagebox.showerror("Error", "กรุณากรอกเบอร์โทรศํพท์ให้ถูกต้อง")
+            return
+
+        if not len(address) <= 150:
+            tkinter.messagebox.showerror("Error", "กรุณากรอกที่อยู่ไม่เกิน 150 อักษร")
+            return
+
+        if not bank_number.isdigit() or not (10 <= len(bank_number) <= 12):
+            tkinter.messagebox.showerror("Error", "กรุณากรอกเลขบัญชีธนาคารให้ถูกต้อง")
+            return
+
+        if "@" not in email or "." not in email or email.count("@") != 1 or email.startswith("@") or email.endswith("@") or email.endswith("."):
+            tkinter.messagebox.showerror("Error", "กรุณากรอกอีเมลให้ถูกต้อง เช่น allottery@gmail.com")
+            return    
 
         stored_fname, stored_lname, stored_email, stored_bank_number, stored_bank_name, stored_phone, stored_address = stored_data
 
@@ -1620,7 +1631,7 @@ class main:
             compound=TOP,
             bg_color='#ff914d',
             hover_color='#ff914d',
-            
+            command=self.logout_admin
         )
         self.logout_btn.place(x=0, y=495)
         
@@ -1629,12 +1640,19 @@ class main:
     
         self.admin_page()
 
+    def logout_admin(self):
+        self.admin_store.destroy()  
+        self.root = tk.Tk() 
+        self.root.geometry("1080x620")
+        self.root.title('ALL LOTTERY')
+        self.login_store()
+
     def admin_page(self):
         # สร้าง Container หลักสำหรับ Admin Page
-        self.container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='#ebe8e8')
-        self.container.place(x=100, y=0, relwidth=1, relheight=1)
+        self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='#ebe8e8')
+        self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.whiteframebg = ctk.CTkFrame(self.container, corner_radius=15, width=800, height=520, fg_color='white')
+        self.whiteframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=520, fg_color='white')
         self.whiteframebg.place(x=50, y=80)
 
         # สร้างกรอบสำหรับปุ่ม
@@ -1651,7 +1669,8 @@ class main:
             height=136,  
             image=manage_lottery_icon,
             command=self.manage_lottery_page, 
-            hover_color='white'  
+            hover_color='white',
+            text=''  
         )
         self.manage_lottery_btn.grid(row=0, column=0, padx=20, pady=20)  
 
@@ -1665,7 +1684,8 @@ class main:
             height=136,  
             image=manage_user_icon,
             command=self.manage_user_page, 
-            hover_color='white'  
+            hover_color='white',
+            text=''  
         )
         self.manage_user_btn.grid(row=1, column=0, padx=20, pady=20)  
 
@@ -1679,12 +1699,13 @@ class main:
             height=136,  
             image=manage_prize_icon,
             command=self.manage_prize_page, 
-            hover_color='white'  
+            hover_color='white',
+            text=''  
         )
         self.manage_prize_btn.grid(row=2, column=0, padx=20, pady=20)  
 
         # อัปเดตแสดงผล
-        self.container.update()
+        self.admin_container.update()
 
     def clear_admin_main_con(self):
         for widget in self.admin_main_con.winfo_children():
@@ -1694,13 +1715,12 @@ class main:
         for widget in self.main_con.winfo_children():
             widget.destroy()  
 
-
     def manage_lottery_page(self):
         self.clear_admin_main_con() 
-        self.container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
-        self.container.place(x=100, y=0, relwidth=1, relheight=1)
+        self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
+        self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.whiteframebg = ctk.CTkFrame(self.container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        self.whiteframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
         self.whiteframebg.place(x=50, y=50) 
 
         self.text_header = ctk.CTkLabel(self.whiteframebg, text="ดูข้อมูลสลากกินแบ่ง", font=('Kanit Regular', 20))
@@ -1764,7 +1784,6 @@ class main:
 
         self.close_db()  
 
-
     def search_lottery(self):
         search_term = self.lottery_search_entry.get()
         self.connect_to_db()
@@ -1782,9 +1801,9 @@ class main:
             self.lottery_tree.insert("", tk.END, values=row)
 
         self.close_db()
-
+    '''
     def edit_lottery(self):
-        self.edit_window = ctk.CTkToplevel(self.container)
+        self.edit_window = ctk.CTkToplevel(self.admin_container)
         self.edit_window.title("แก้ไขข้อมูลล็อตเตอรรี่")
         self.edit_window.geometry("400x400")  
         
@@ -1804,6 +1823,32 @@ class main:
         save_btn.grid(row=len(labels), column=0, columnspan=2, pady=20)
 
         self.load_lottery_data_to_edit()
+    '''    
+    def edit_lottery(self):
+        self.edit_lottery_window = ctk.CTkToplevel(self.admin_container)
+        self.edit_lottery_window.title("แก้ไขข้อมูลล็อตเตอรรี่")
+        
+        # ตั้งค่า scaling ให้ตรงกับหน้าหลัก
+        self.edit_lottery_window.tk.call('tk', 'scaling', 1.5)
+        
+        self.edit_lottery_window.geometry("400x400")  # ขนาดของหน้าต่างที่คุณต้องการ
+        form_frame = ctk.CTkFrame(self.edit_lottery_window, fg_color="white")
+        form_frame.pack(pady=20, padx=20, fill="both", expand=True)
+        
+        labels = ["ID", "Lottery Type", "Lottery Number", "Price", "Amount"]
+        self.entries_lottery = []  
+        
+        for i, label in enumerate(labels):
+            ctk.CTkLabel(form_frame, text=label, font=('Kanit Regular', 16)).grid(row=i, column=0, padx=10, pady=10)
+            entry_lottery = ctk.CTkEntry(form_frame)
+            entry_lottery.grid(row=i, column=1, padx=10, pady=10)
+            self.entries_lottery.append(entry_lottery) 
+
+        save_btn = ctk.CTkButton(form_frame, text="บันทึก", font=('Kanit Regular', 16), command=self.save_lottery_edits)
+        save_btn.grid(row=len(labels), column=0, columnspan=2, pady=20)
+
+        self.load_lottery_data_to_edit()
+        
 
     def load_lottery_data_to_edit(self):
         selected_item = self.lottery_tree.selection()
@@ -1837,7 +1882,7 @@ class main:
             conn.commit()
             conn.close()
 
-        self.edit_window.destroy()
+        self.edit_lottery_window.destroy()
 
     def delete_lottery(self):
         selected_lottery = self.lottery_tree.selection()
@@ -1861,10 +1906,10 @@ class main:
 
     def manage_user_page(self):
         self.clear_admin_main_con() 
-        self.container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
-        self.container.place(x=100, y=0, relwidth=1, relheight=1)
+        self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
+        self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.whiteframebg = ctk.CTkFrame(self.container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        self.whiteframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
         self.whiteframebg.place(x=50, y=50) 
 
         self.text_header = ctk.CTkLabel(self.whiteframebg, text="ดูข้อมูลผู้ใช้งานทั้งหมด", font=('Kanit Regular', 20))
@@ -1966,12 +2011,12 @@ class main:
 
     def edit_user(self):
         # สร้างหน้าต่างย่อย
-        self.edit_window = ctk.CTkToplevel(self.container)
-        self.edit_window.title("แก้ไขข้อมูลผู้ใช้งาน")
-        self.edit_window.geometry("400x700")  
+        self.edit_user_window = ctk.CTkToplevel(self.admin_container)
+        self.edit_user_window.title("แก้ไขข้อมูลผู้ใช้งาน")
+        self.edit_user_window.geometry("400x700")  
         
         # กำหนดกรอบสำหรับฟอร์มการแก้ไข
-        form_frame = ctk.CTkFrame(self.edit_window, fg_color="white")
+        form_frame = ctk.CTkFrame(self.edit_user_window, fg_color="white")
         form_frame.pack(pady=20, padx=20, fill="both", expand=True)
         
         # สร้าง Label และช่องกรอกข้อมูลสำหรับแต่ละฟิลด์
@@ -2032,7 +2077,7 @@ class main:
             conn.commit()
             conn.close()
 
-        self.edit_window.destroy()
+        self.edit_user_window.destroy()
 
     def delete_user(self):
         selected_item = self.user_tree.selection()
@@ -2058,10 +2103,10 @@ class main:
    
     def manage_prize_page(self):
         self.clear_admin_main_con()  
-        self.container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
-        self.container.place(x=100, y=0, relwidth=1, relheight=1)
+        self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
+        self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.whiteframebg = ctk.CTkFrame(self.container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')
+        self.whiteframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')
         self.whiteframebg.place(x=50, y=50)
 
         self.text_prize_header = ctk.CTkLabel(self.whiteframebg, text="ดูข้อมูลสลากกินแบ่งที่ถูกรางวัล", font=('Kanit Regular', 20))
@@ -2150,7 +2195,7 @@ class main:
 
     def edit_prize(self):
         # สร้างหน้าต่างย่อย
-        self.edit_prize_window = ctk.CTkToplevel(self.container)
+        self.edit_prize_window = ctk.CTkToplevel(self.admin_container)
         self.edit_prize_window.title("แก้ไขข้อมูลผู้ใช้งาน")
         self.edit_prize_window.geometry("400x400")  
         
@@ -2232,14 +2277,12 @@ class main:
 
             self.refresh_user_list()
 
-#หน้าแอดมินน
-
     def add_lottery_page(self):
         self.clear_admin_main_con()
-        self.container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
-        self.container.place(x=100, y=0, relwidth=1, relheight=1)
+        self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
+        self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.greyframebg = ctk.CTkFrame(self.container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        self.greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
         self.greyframebg.place(x=50, y=50) 
 
         self.text_header = ctk.CTkLabel(self.greyframebg, text="คลังลอตเตอรี่", font=('Kanit Regular', 20))
@@ -2297,7 +2340,6 @@ class main:
             self.img_ctk = ctk.CTkImage(img, size=(280, 130))
           
             self.select_status.configure(image =self.img_ctk,text ='' )
-        
         pass
     
     def add_lottery(self):
@@ -2317,8 +2359,7 @@ class main:
         img_binary = io.BytesIO()
         self.img_lottery.save(img_binary, format='JPEG')
         img_binary_data = img_binary.getvalue()
-
-           
+       
         try:
             self.c.execute('SELECT * FROM lottery WHERE num_id = ?',
                         (num_lottery,))
@@ -2378,10 +2419,10 @@ class main:
     def prize_lottery_page(self):
         self.clear_admin_main_con()  
 
-        self.container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
-        self.container.place(x=100, y=0, relwidth=1, relheight=1)
+        self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
+        self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.greyframebg = ctk.CTkFrame(self.container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        self.greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
         self.greyframebg.place(x=50, y=50) 
 
         self.text_header = ctk.CTkLabel(self.greyframebg, text="บันทึกผลการจับสลาก", font=('Kanit Regular', 20))
