@@ -12,6 +12,8 @@ import io
 from tkinter import filedialog
 import random
 import api_payment
+import pandas as pd
+import uuid
 
 class main:
     def __init__(self, root):
@@ -59,28 +61,29 @@ class main:
                 amount_orders INTEGER NOT NULL,
                 price_orders INTEGER NOT NULL,
                 Cash INTEGER NOT NULL,
-                status TEXT NOT NULL         
+                status TEXT NOT NULL
             )''')
-            self.conn.commit()
-
-            self.c.execute('''CREATE TABLE IF NOT EXISTS save(
-                id INTEGER PRIMARY KEY,
-                username_save TEXT NOT NULL,
-                num_lottery_save INTEGER NOT NULL,
-                slip BLOB NOT NULL,
-                amount_save INTEGER NOT NULL,
-                price_save INTEGER NOT NULL,
-                status_save TEXT NOT NULL        
-                )''')
             self.conn.commit()
           
             self.c.execute('''CREATE TABLE IF NOT EXISTS results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 draw_date DATE NOT NULL,  
-                prize_type TEXT NOT NULL, 
+                price_type TEXT NOT NULL, 
                 lottery_number TEXT NOT NULL,    
-                prize_amount INTEGER     
+                price_amount INTEGER     
             )''')
+            self.conn.commit()
+            
+            self.c.execute('''CREATE TABLE IF NOT EXISTS save(
+                id INTEGER PRIMARY KEY,
+                username_save TEXT NOT NULL,
+                num_lottery_save INTEGER NOT NULL,
+                img_lottery_save BLOB NOT NULL,
+                slip BLOB NOT NULL,
+                amount_save INTEGER NOT NULL,
+                price_save INTEGER NOT NULL,
+                status_save TEXT NOT NULL 
+                )''')
             self.conn.commit()
 
 
@@ -565,6 +568,9 @@ class main:
             icon_config.configure(image=img_icon, text_color='#2b2b2b')   
                  
     def main_container(self):
+        self.header_frame = ctk.CTkFrame(self.container, fg_color='#2b2b2b', width=1920, height=50, corner_radius=0)
+        self.header_frame.grid(row=0, column=0, sticky='nsew')
+
         # สร้าง Frame หลักสำหรับการแสดงข้อมูล
         self.container = ctk.CTkFrame(self.store, width=980, height=900, corner_radius=0, fg_color='white')
         self.container.place(x=100, y=0 )
@@ -650,9 +656,6 @@ class main:
         self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
         self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
         self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows
-
-        self.header_frame = ctk.CTkFrame(self.container, fg_color='#2b2b2b', width=1920, height=50, corner_radius=0)
-        self.header_frame.grid(row=0, column=0, sticky='nsew')
 
         self.ads_frame = ctk.CTkFrame(self.main_con, fg_color='#b91c1c', width=450, height=350, corner_radius=0)
         self.ads_frame.grid(row=0, column=0, pady=0, sticky='nsew')
@@ -937,13 +940,13 @@ class main:
                         cash = ?, 
                         status = ?
                     WHERE orders_lottery_num = ? AND User_orders = ?
-                ''', (img_data, new_amount, (int(price_data) *int( new_amount,)) ,0, 'ยังไม่จ่าย', num_lottery, username,))
+                ''', (img_data, new_amount, (int(price_data) *int( new_amount,)) ,0, 'ยังไม่ชำระ', num_lottery, username))
             else:
                 # ถ้าไม่พบรายการ ให้เพิ่มรายการใหม่
                 self.c.execute('''
                     INSERT INTO orders (User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status) 
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (username, num_lottery, img_data, amount, int(price_data) * int(amount), 0, 'ยังไม่จ่าย',))
+                ''', (username, num_lottery, img_data, amount, int(price_data) * int(amount), 0, 'ยังไม่ชำระ'))
 
             # ยืนยันการเปลี่ยนแปลงในฐานข้อมูล
             self.conn.commit()
@@ -955,144 +958,168 @@ class main:
             self.conn.close()
     
     def cart_page(self):
-        # เชื่อมต่อกับฐานข้อมูล
-        self.conn = sqlite3.connect('data.db')
-        self.c = self.conn.cursor()
-        self.changeColor_icon(self.Mysave_page, "cart", self.cart_btn)
+        global cart_order_con
         self.clear_main_con()
+        self.changeColor_icon(self.Mysave_page, "cart", self.cart_btn)
         self.main_container()
-    
-        # ดึงข้อมูลการสั่งซื้อจากฐานข้อมูล
+        # สร้าง container หลัก
+        cart_order_con = ctk.CTkFrame(self.container, width=800, height=600, fg_color='white')
+        cart_order_con.place(x=0, y=10)
         try:
-            self.c.execute('SELECT User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status FROM orders WHERE User_orders = ?', (self.username,))
-            orders_data = self.c.fetchall()
-        except Exception as e:
-            print(f"Error fetching orders: {e}")
-            orders_data = []
+            # เชื่อมต่อกับฐานข้อมูล
+            self.conn = sqlite3.connect('data.db')
+            self.c = self.conn.cursor()
 
-        # สร้าง Frame สำหรับ Cart List
-        self.cartList_con = ctk.CTkFrame(self.cart_page_con, fg_color='#2b2b2b', width=500, height=200, corner_radius=15)
-        self.cartList_con.grid(row=0, column=0,padx=245,sticky= 'nsew',pady = 5)
-
-        # สร้าง Canvas สำหรับเลื่อนแนวนอน
-        self.cart_canvas = tk.Canvas(self.cartList_con, bg='#2b2b2b', highlightthickness=0, height=200)
-        self.cart_canvas.place(x=20, y=0)
-
-        # สร้าง Scrollbar แนวนอนสำหรับ Canvas
-        self.scrollbar = ctk.CTkScrollbar(self.cartList_con, orientation='horizontal', command=self.cart_canvas.xview)
-        self.scrollbar.place(x=5, y=180)
-        self.cart_canvas.configure(xscrollcommand=self.scrollbar.set)
-
-        # สร้าง Frame ภายใน Canvas สำหรับรายการสินค้า
-        self.cart_items_frame = tk.Frame(self.cart_canvas, bg='#fbf5f5')
-        self.cart_canvas.create_window((0, 0), window=self.cart_items_frame, anchor='nw')
-
-        # อัปเดต scroll region เมื่อ cart_items_frame เปลี่ยนขนาด
-        def update_scroll_region(event=None):
-            self.cart_canvas.configure(scrollregion=self.cart_canvas.bbox("all"))
-
-        self.cart_items_frame.bind("<Configure>", update_scroll_region)
-        
-        # สร้าง container สำหรับข้อมูลการสั่งซื้อ
-        list_orders_con = ctk.CTkFrame(self.cart_page_con, width=500 ,fg_color='#ebe8e8'
-                                       ,border_width=2,border_color='#cfcfcf')
-        list_orders_con.grid(row=1, column=0, pady=10,padx=245,sticky= 'nsew')
-        
-        Allorders_list_con = ctk.CTkFrame(
-            list_orders_con, width=480, fg_color='#ebe8e8'
-        )
-        Allorders_list_con.grid(row=1, column=0, pady=5, padx=5, sticky='nsew')
-
-        # ตั้งค่าให้ Allorders_list_con ยืดขยายได้
-        Allorders_list_con.rowconfigure(0, weight=1)
-        Allorders_list_con.columnconfigure(0, weight=1) 
-        
-        # แสดงรายการสินค้าในตะกร้า
-        for i, order in enumerate(orders_data):
-            username_data, num_lottery, img_lot, amount, price, cash, status = order
-
-            # โหลดและแสดงภาพลอตเตอรี่
+            # ดึงข้อมูลการสั่งซื้อจากฐานข้อมูล
             try:
-                img1 = Image.open(io.BytesIO(img_lot)).resize((200, 100))
-                img_lottery = ImageTk.PhotoImage(img1)
+                self.c.execute('SELECT User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status FROM orders WHERE User_orders = ?', (self.username,))
+                orders_data = self.c.fetchall()
             except Exception as e:
-                print(f"Error loading image: {e}")
-                continue
+                print(f"Error fetching orders: {e}")
+                orders_data = []
 
-            # สร้าง container สำหรับสินค้าแต่ละรายการ
-            img_con = tk.Label(self.cart_items_frame, width=100, height=200, bg="#2b2b2b")
-            img_con.grid(row=0, column=i)
 
-            # ใส่รูปภาพใน container
-            label_image = tk.Label(img_con, image=img_lottery)
-            label_image.image = img_lottery  # เก็บ reference เพื่อป้องกัน garbage collection
-            label_image.place(x=100, y=50)
+            # สร้าง Frame สำหรับ Cart List
+            self.cartList_con = ctk.CTkFrame(cart_order_con, fg_color='#2b2b2b', width=500, height=200, corner_radius=15)
+            self.cartList_con.grid(row=0, column=0, padx=245, sticky='nsew', pady=5)
 
-            list_label = ctk.CTkLabel(list_orders_con, text='รายการลอตเตอรี่', font=('Prompt', 16),
-                                      text_color='black')
-            list_label.grid(row=0, column=0,padx=125,pady= 5,sticky= 'nsew' )
+            # สร้าง Canvas สำหรับเลื่อนแนวนอน
+            self.cart_canvas = tk.Canvas(self.cartList_con, bg='#2b2b2b', highlightthickness=0, width=490, height=200)
+            self.cart_canvas.place(x=20, y=0)
+
+            # สร้าง Scrollbar แนวนอนสำหรับ Canvas
+            self.scrollbar = ctk.CTkScrollbar(self.cartList_con, orientation='horizontal', command=self.cart_canvas.xview)
+            self.scrollbar.place(x=5, y=180)
+            self.cart_canvas.configure(xscrollcommand=self.scrollbar.set)
+
+            # สร้าง Frame ภายใน Canvas สำหรับรายการสินค้า
+            self.cart_items_frame = tk.Frame(self.cart_canvas, bg='#2b2b2b')
+            self.cart_canvas.create_window((0, 0), window=self.cart_items_frame, anchor='nw')
+
+            # อัปเดต scroll region เมื่อ cart_items_frame เปลี่ยนขนาด
+            def update_scroll_region(event=None):
+                self.cart_canvas.configure(scrollregion=self.cart_canvas.bbox("all"))
+
+            self.cart_items_frame.bind("<Configure>", update_scroll_region)
+
+            # container หลังของ box สั้งซื้อ
+            list_orders_con = ctk.CTkFrame(cart_order_con, width=500, fg_color='#ebe8e8',
+                                        border_width=2, border_color='#cfcfcf')
+            list_orders_con.grid(row=1, column=0, pady=10, padx=245, sticky='nsew')  
+
+            # ใช้ CTkScrollableFrame สำหรับการเลื่อน
+            cart_order_scroll_frame = ctk.CTkScrollableFrame( list_orders_con, width=500, fg_color='#ffffff')
+            cart_order_scroll_frame.grid(row=0, column=0,padx =20,pady=20, sticky='nsew')
+
+            # ตั้งค่า columnconfigure
+            cart_order_scroll_frame.columnconfigure(0, weight=1)
+            list_orders_con.columnconfigure(0, weight=2)
+
+            # ฟังก์ชันเลื่อนด้วย Mouse Wheel
+            def on_mouse_scroll(event):
+                cart_order_scroll_frame._parent_canvas.yview_scroll(-1 * (event.delta // 120), "units")
+
+            cart_order_scroll_frame.bind_all("<MouseWheel>", on_mouse_scroll)
             
-            orders_list_con = ctk.CTkFrame(
-                Allorders_list_con, width=480, height=200, fg_color='#ffffff',
-                border_width=1, border_color='#b8b8b8'
-            )
-            orders_list_con.grid(
-                row=i, column=0, pady=(0, 10), padx=0, sticky='nsew'
-            )
+            total_price = 0
 
-            # ตั้งค่าให้ orders_list_con ขยายได้
-            Allorders_list_con.rowconfigure(i, weight=2)  # ให้แถวที่ i ขยาย
-            orders_list_con.columnconfigure(i, weight=2)  # คอลัมน์ 3 ขยาย
+            # แสดงรายการสินค้าในตะกร้า
+            for i, order in enumerate(orders_data):
+                username_data, num_lottery, img_lot, amount, price, cash, status = order
 
-            # เพิ่มปุ่มลบ พร้อมคำสั่งลบสินค้าออกจากตะกร้า
-            delete_btn = ctk.CTkButton(orders_list_con, width=40, height=40, corner_radius=5,
-                                       text ='X',font=('Prompt', 16),
-                                       fg_color='#e32320',hover_color='#c20300',
+                total_price += float(price)
+                # โหลดและแสดงภาพลอตเตอรี่
+                try:
+                    img1 = Image.open(io.BytesIO(img_lot)).resize((350, 150))
+                    self.img_lottery = ImageTk.PhotoImage(img1)
+                except Exception as e:
+                    print(f"Error loading image: {e}")
+                    continue
 
-                                    command=lambda o=order: self.delete_item_from_cart(o))
-            delete_btn.grid(row=0, column=0, sticky='w', padx=5,pady =5)
+                # สร้าง container สำหรับภาพสินค้าแต่ละรายการ
+                img_con = tk.Label(self.cart_items_frame, width=350, height=150, bg="#2b2b2b")
+                img_con.grid(row=0, column=i, padx=10, pady=20, sticky='nw')
 
-            # แสดงจำนวนและราคา
-            num_label = ctk.CTkLabel(orders_list_con, text=f'{num_lottery}',
-                                                font=('Prompt', 16),
-                                                text_color='black')
-            num_label.grid(row=0, column=1, padx=10, sticky='w')
-            
-            amount_label = ctk.CTkLabel(orders_list_con, text=f'x{amount}',
-                                                font=('Prompt', 14),
-                                                text_color='#cfcfcf')
-            amount_label.grid(row=0, column=2, padx=2, sticky='w')
-            
-            price_label = ctk.CTkLabel(orders_list_con, text=f'{price} บาท',
-                                                font=('Prompt', 16),
-                                                text_color='black', anchor='e')
-            price_label.grid(row=0, column=3, sticky='e',padx =10,)
-            orders_list_con.columnconfigure(3, weight=1)
-            
-            total_price_text = ctk.CTkLabel(list_orders_con, text='ยอดรวม',
+                # ใส่รูปภาพใน container
+                label_image = tk.Label(img_con, image=self.img_lottery)
+                label_image.image = self.img_lottery  # เก็บ reference เพื่อป้องกัน garbage collection
+                label_image.pack(fill='both', expand=True)
+
+                # ส่วนของรายการสินค้า
+                orders_list_con = ctk.CTkFrame(
+                    cart_order_scroll_frame, width=480, height=200, fg_color='#ffffff',
+                    border_width=1, border_color='#b8b8b8'
+                )
+                orders_list_con.grid(
+                    row=i, column=0, pady=10, padx=0, sticky='nsew'
+                )
+
+                # ตั้งค่า columnconfigure ของ orders_list_con
+                orders_list_con.columnconfigure(3, weight=1)  # สำหรับ delete_btn
+               
+                # เพิ่มปุ่มลบ พร้อมคำสั่งลบสินค้าออกจากตะกร้า
+                delete_btn = ctk.CTkButton(orders_list_con, width=40, height=40, corner_radius=5,
+                                        text='X', font=('Prompt', 16),
+                                        fg_color='#e32320', hover_color='#c20300',
+                                        command=lambda o=order: self.delete_item_from_cart(o))
+                delete_btn.grid(row=0, column=0, sticky='w', padx=5, pady=5)
+
+                # แสดงจำนวนและราคา
+                num_label = ctk.CTkLabel(orders_list_con, text=f'{num_lottery}',
+                                        font=('Prompt', 16),
+                                        text_color='black')
+                num_label.grid(row=0, column=1, padx=5, sticky='w')
+
+                amount_label = ctk.CTkLabel(orders_list_con, text=f'x{amount}',
+                                            font=('Prompt', 14),
+                                            text_color='#cfcfcf')
+                amount_label.grid(row=0, column=2, padx=2, sticky='w')
+                
+                price_label = ctk.CTkLabel(orders_list_con, text=f'{price} บาท',
+                                            font=('Prompt', 16),
+                                            text_color='black')
+                price_label.grid(row=0, column=3, padx=5, sticky='e')
+                
+                total_price_text = ctk.CTkLabel( list_orders_con, text='ยอดรวม',
                                                 font=('Prompt', 16),
                                                 text_color='black', anchor='w')
-            total_price_text.grid(row=2, column=0, sticky='w',padx =10,pady=10)
-            
-            
-            total_price_label = ctk.CTkLabel(list_orders_con, text=f'{price} บาท',
+                total_price_text.grid(row=1, column=0, sticky='w', padx=10, pady=10)
+
+                total_price_label = ctk.CTkLabel( list_orders_con, text=f'{total_price:,.2f} บาท',
                                                 font=('Prompt', 16),
                                                 text_color='black', anchor='e')
-            total_price_label.grid(row=2, column=1, sticky='e',padx =10,pady=10)
-            
-            pay_btn = ctk.CTkButton(list_orders_con
-                                    ,text = 'ชำระเงิน',font = ('Prompt',16)
-                                    ,width=480,height=40,
-                                    text_color='white',fg_color='#e32320',
-                                    hover_color='#c20300',
-                                    command=self.payment_ui
-                                    )
-            pay_btn.grid(row = 3,column =0,columnspan = 2, padx =10 ,pady =5,sticky ='nsew')
+                total_price_label.grid(row=1, column=1, sticky='e', padx=10, pady=10)
 
+                pay_btn = ctk.CTkButton( list_orders_con,
+                                        text='ชำระเงิน', font=('Prompt', 16),
+                                        width=480, height=40,
+                                        text_color='white', fg_color='#e32320',
+                                        hover_color='#c20300',
+                                        command=self.payment_ui)
+                pay_btn.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky='nsew')
+                
+                
+            if self.cart_items_frame.winfo_exists() and not self.cart_items_frame.winfo_children():
+                    for widget in cart_order_con.winfo_children():
+                        widget.destroy()
+                    cart_order_con.destroy()
+                    self.clear_main_con()
+                    blank_stock_con = ctk.CTkFrame(self.container, width=800, height=600, fg_color='white')
+                    blank_stock_con.place(x=0, y=10)
+                    blank_stock = ctk.CTkLabel(blank_stock_con, text='ตะกร้าว่างเปล่า', 
+                                            fg_color='red', font=('Prompt', 25))
+                    blank_stock.grid(row=0, column=0, sticky='nsew', padx=200, pady=200)
 
-        # ปิดการเชื่อมต่อฐานข้อมูล
-        self.conn.close()
         
+           
+
+        except Exception as e:
+            print(f"Error : {e}")
+        finally:
+            self.conn.close()
+
+ 
+            
     def payment_ui(self):
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
@@ -1169,186 +1196,400 @@ class main:
 
     def delete_item_from_cart(self, order):
         try:
-            # ลบรายการออกจากฐานข้อมูล
+            # ลบข้อมูลสินค้าออกจากฐานข้อมูล
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
-            
-            self.c.execute('SELECT * FROM orders')
-            check_orders = self.c.fetchall()
-            
-            if check_orders != None:
-                self.c.execute('DELETE FROM orders WHERE User_orders = ? AND orders_lottery_num = ?', (self.username, order[1]))
-                self.conn.commit()
+            self.c.execute(
+                'DELETE FROM orders WHERE User_orders = ? AND orders_lottery_num = ?',
+                (self.username, order[1])
+            )
+            self.conn.commit()
 
-                # รีเฟรชหน้าตะกร้า
-                self.cart_page()
-            else:
-                self.clear_main_con()
+            # ดึงข้อมูลรายการสินค้าหลังจากลบ
+            self.c.execute('SELECT User_orders, orders_lottery_num FROM orders WHERE User_orders = ?', (self.username,))
+            remaining_orders = self.c.fetchall()
+
+            
+            # อัปเดต UI โดยรีเฟรชตะกร้า
+            self.cart_page()
         except Exception as e:
             print(f"Error deleting item: {e}")
         finally:
             self.conn.close()
 
+
     def clear_stock(self):
         try:
-            self.payment_page.destroy() 
+            self.payment_page.destroy()
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
 
+            # ดึงข้อมูลจากตาราง orders
             self.c.execute('SELECT * FROM orders WHERE User_orders = ?', (self.username,))
             d = self.c.fetchone()
-            
+
             if not d:
                 print("No orders found.")
                 return
-            
+
             username = d[1]
-            image_lottery = d[3]
             num_lottery = d[2]
+            image_lottery = d[3]
             amount = d[4]
             price = d[5]
             status = d[7]
-            
+
+            # ตรวจสอบสถานะ
             if status == 'ชำระเงินแล้ว':
-                pass
-
-
+                print("Order already paid.")
             elif status == 'ยังไม่ชำระ':
-                self.clear_main_con()
-                 
+                # แปลงภาพลอตเตอรี่เป็นไบนารี
+                if image_lottery:
+                    try:
+                        img = Image.open(io.BytesIO(image_lottery))
+                        img_binary_lot = io.BytesIO()
+                        img.save(img_binary_lot, format='JPEG')
+                        img_binary_lot = img_binary_lot.getvalue()
+                    except Exception as e:
+                        print(f"Error processing lottery image: {e}")
+
+                # เพิ่มข้อมูลในตาราง save
                 self.c.execute(
                     '''
                     INSERT INTO save (
-                        username_save, num_lottery_save, slip, amount_save, price_save, status_save
-                    ) VALUES (?, ?, ?, ?, ?, ?)
+                        username_save, num_lottery_save, slip, amount_save, price_save, status_save, img_lottery_save
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
                     ''',
-                    (username, num_lottery, img_binary_slip, amount, price, status)
+                    (username, num_lottery, img_binary_slip, amount, price, status, img_binary_lot)
                 )
                 self.conn.commit()
-                 
-                    
-                
+
         except Exception as e:
             print(f"Error in clear_stock: {e}")
         finally:
-            self.conn.close()
-                 
+            if self.conn:
+                self.conn.close()
+
+
     def Mysave_page(self):
-        self.conn = sqlite3.connect('data.db')
-        self.c = self.conn.cursor()
-        self.changeColor_icon(self.Mysave_page,"save",self.save_btn)
+        self.changeColor_icon(self.Mysave_page, "save", self.save_btn)
         self.clear_main_con()
         self.main_container()
- 
+
+        try:
+            self.conn = sqlite3.connect('data.db')
+            self.c = self.conn.cursor()
+
+            # ดึงข้อมูลจากตาราง save
+            self.c.execute('SELECT num_lottery_save, img_lottery_save, amount_save, price_save, status_save, order_code FROM save WHERE username_save = ?', (self.username,))
+            save_data = self.c.fetchall()
+        except Exception as e:
+            print(f"Error fetching orders: {e}")
+            save_data = []
+        finally:
+            if self.conn:
+                self.conn.close()
+                
+        def edit_slip():
+            self.payment_page = tk.Toplevel(self.store)
+            self.payment_page.geometry('400x600')
+            self.payment_page.title('ชำระเงิน')
+            global img_slip
+            file_path = filedialog.askopenfilename(
+            title="แนบสลิป",
+            filetypes=(("JPEG files", "*.jpg"), ("All files", "*.*")))
+
+            if file_path:
+                self.file_path = file_path
+                img = Image.open(file_path)
+                img = img.resize((200, 280))  # ปรับขนาดภาพให้พอดีกับหน้าจอ
+                img_slip = ctk.CTkImage(img, size=(200, 280))
+                
+                # แปลงภาพเป็นไบนารี
+                with io.BytesIO() as output:
+                    global img_binary_slip
+                    img.save(output, format="PNG")  # บันทึกเป็น PNG ในหน่วยความจำ
+                    img_binary_slip = output.getvalue()  # ดึงข้อมูลไบนารี
+            
+                show_slip = ctk.CTkLabel(self.payment_page,image=img_slip,width=200,height=280,text='')
+                show_slip.grid(row = 2,column = 0,sticky= 'nsew',pady = 5,padx = 100 )
+                
+                confirm_btn = ctk.CTkButton(self.payment_page,text='ยืนยันการชำระเงิน',font=('Prompt',14)
+                                            ,height=40,width=20,
+                                            command  = self.clear_stock)
+                confirm_btn.grid(row =3,column = 0,sticky= 'nsew',pady = 5,padx = 100 )
+        
+   
+        # สร้าง Container สำหรับแสดงข้อมูล
+        self.save_page_con = ctk.CTkFrame(self.container, width=880, height=900, fg_color='#ffffff')
+        self.save_page_con.grid(row=0, column=0,sticky='nsew')
+
+        save_canvas = ctk.CTkScrollableFrame(self.save_page_con, width=850, height=580, fg_color='white'
+                                             ,scrollbar_button_color='white',scrollbar_button_hover_color='white')
+        save_canvas.grid(row=0, column=0, padx=60, pady=20, sticky='nsew')
+        save_canvas.columnconfigure(0, weight=1)  # กำหนดให้ column 0 ขยายตามความกว้างของ Container
+        save_canvas.rowconfigure(0, weight=1)  # กำหนดให้ row 0 ขยายตามความสูงของ Container
+
+
+        label_header = ctk.CTkLabel(save_canvas , text='รายการสั่งซื้อ', font=('Kanit Regular', 30), text_color='black') # กำหนดขนาดของ Label'
+        label_header.grid(row=0, column=0,  sticky='nsew',columnspan = 2)  # ใช้ sticky เพื่อขยาย Label ให้เต็มความกว้างของ Container
+
+        # สร้าง dictionary เพื่อเก็บ order_group ตาม order_code
+        order_groups = {}
+        # วนลูปแสดงข้อมูลแต่ละรายการ
+        for i, save in enumerate(save_data):
+            try:
+                num_lottery, img_lot, amount, price, status, order_code = save
+
+                # ถ้ายังไม่มี group สำหรับ order_code นี้ ให้สร้างใหม่
+                if order_code not in order_groups:
+                    order_group = ctk.CTkFrame(save_canvas, width=680, height=100, fg_color='white',corner_radius=10,border_color='#e8e8ed',border_width=2)
+                    order_group.grid(row=len(order_groups) + 1, column=0, pady=10, sticky='nsew', padx=10, columnspan=2)
+                    order_groups[order_code] = order_group  # เก็บกลุ่มนี้ไว้ตาม order_code
+                    
+                    order_box = ctk.CTkFrame(order_group, width=675, height=100, fg_color='white')
+                    order_box.grid(row=0, column=0, pady=10, sticky='nsew', padx=5, columnspan=2)
+
+                    code_order_label = ctk.CTkLabel(order_group, text=f"รหัสสั่งซื้อ: {order_code}", font=('Kanit Regular', 16), text_color='black', bg_color='white')
+                    code_order_label.grid(row=1, column=0, padx=15, pady=10, sticky='w')
+                    
+                    total_price_label = ctk.CTkLabel(order_group,text = f'ยอดรวม {price} บาท',text_color= 'black',font=('Kanit Regular', 16)
+                                                     , bg_color='white')
+                    total_price_label.grid(row=1, column=2, padx=15, pady=10, sticky='e')
+
+                    order_group.columnconfigure(3, weight=1)
+                    
+                    column_attibute = ctk.CTkFrame(order_box, width=680, height=120, fg_color='white')
+                    column_attibute.grid(row=1, column=0, padx=2, pady=8, sticky='nsew')
+
+                    column_attibute.columnconfigure(3, weight=1)
+
+                    colum_list = ['หมายเลขลอตเตอรี่', 'จำนวน', 'ราคา', 'สถานะ']
+                    for i, col in enumerate(colum_list):
+                        label = ctk.CTkLabel(column_attibute, text=col, font=('Kanit Regular', 16), text_color='black', bg_color='white')
+                        label.grid(row=0, column=i, padx=60, pady=10, sticky='nsew')
+                    
+
+
+                # เลือกกลุ่มที่มีอยู่แล้วสำหรับ order_code นี้
+                order_group = order_groups[order_code]
+
+                # แปลงภาพจากไบนารี
+                img_lottery = None
+                if img_lot:
+                    try:
+                        img1 = Image.open(io.BytesIO(img_lot)).resize((200, 100))
+                        img_lottery = ImageTk.PhotoImage(img1)
+                    except Exception as e:
+                        print(f"Error loading image: {e}")
+                line_frame = ctk.CTkFrame(order_box,width=150,height=2,fg_color='#e8e8ed')
+                line_frame.grid(row=i+2, column=0, pady=10, sticky='nsew', padx=10, columnspan=2)
+
+                # สร้างรายการภายในกลุ่ม order_group
+                save_list_con = ctk.CTkFrame(order_box, width=800, height=100, bg_color='white',fg_color='white')
+                save_list_con.grid(row=i + 3, column=0, pady=5, sticky='nsew', padx=20, columnspan=2)
+                save_list_con.columnconfigure(3, weight=1)
+
+                label_image = tk.Label(save_list_con, image=img_lottery)
+                label_image.image = img_lottery  # เก็บ reference เพื่อป้องกัน garbage collection
+                label_image.grid(row=i, column=0, padx=10, pady=10)
+
+                label_amont = ctk.CTkLabel(save_list_con, text=f"x{amount}" ,font=('Kanit Regular', 16), text_color='#86868b', bg_color='white')
+                label_amont.grid(row=i, column=1, padx=80, pady=10, sticky='nsew')
+
+                label_price = ctk.CTkLabel(save_list_con, text=price, font=('Kanit Regular', 16), text_color='#86868b', bg_color='white')
+                label_price.grid(row=i, column=2, padx=60, pady=10, sticky='nsew')
+
+                label_status = ctk.CTkLabel(save_list_con, text='รอดำเนินการ', font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
+                label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
+
+                if status == 'ชำระเงินแล้ว':
+                    label_status = ctk.CTkLabel(save_list_con, text='รอประกาศรางวัล', font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
+                    label_status.grid(row=i, column=3, padx=100, pady=10, sticky='nsew')
+
+                elif status == 'การชำระไม่ถูกต้อง':
+                    edit_slip = ctk.CTkButton(save_list_con, text='แก้ไขข้อมูล', font=('Prompt', 14), fg_color='red', command=edit_slip)
+                    edit_slip.grid(row=i, column=3, padx=100, pady=10, sticky='nsew')
+                    pass
+            except Exception as e:
+                print(f"Error processing save data: {e}")
+                continue
+
+
        
     def profile_page(self):
-        self.conn = sqlite3.connect('data.db')
-        self.c = self.conn.cursor()
-        self.changeColor_icon(self.profile_page,"profile",self.profile_btn)
-        self.clear_main_con() 
-        self.main_container()
+            self.conn = sqlite3.connect('data.db')
+            self.c = self.conn.cursor()
+            self.changeColor_icon(self.profile_page,"profile",self.profile_btn)
+            self.clear_main_con() 
+            
+            self.container = ctk.CTkFrame(self.store, width=1920, height=600, corner_radius=0, fg_color='white')
+            self.container.place(x=100, y=0,relx= 0,rely = 0, relwidth =1 ,relheight = 1 )
 
-        user_info_card = ctk.CTkFrame(self.main_con, fg_color='#ff3131', width=600, height=200, corner_radius=15)
-        user_info_card.grid(row=0, column=0, padx=200,pady=50)
+            # สร้าง Canvas
+            self.scroll_canvas = tk.Canvas(self.container, bg='white',highlightthickness=0)
+            self.scroll_canvas.place(x=0, y=0, width=1920, height=600)
 
-        profile_image = Image.open(r'D:\python_finalproject\img\icon\white\24.png') 
-        profile_img_icon = ctk.CTkImage(profile_image, size=(160, 100))  
+            # สร้าง Scrollbar
+            self.scrollbar1 = ctk.CTkScrollbar(self.container, orientation='vertical',hover='white'
+                                            ,corner_radius=10,
+                                            fg_color='white',
+                                            bg_color='white',button_color='white',
+                                            width=18,height=100
+                                            ,command=self.scroll_canvas.yview)
+            
+            self.scrollbar1.place(x=1902, y=0)
+            self.scroll_canvas.configure(yscrollcommand=self.scrollbar1.set)
 
-        profile_img_label = ctk.CTkLabel(user_info_card, image=profile_img_icon,text='')
-        profile_img_label.place(x=20, y=50) 
+            # สร้าง Frame ภายใน Canvas
+            self.main_con = tk.Frame(self.scroll_canvas, bg='#ffffff')
 
-        self.c.execute("SELECT username FROM users WHERE id = ?",(self.user_id,))  
-        username = self.c.fetchone()[0]  
+            self.scroll_canvas.create_window((0, 0), window=self.main_con, anchor='nw')
 
-        name_label = ctk.CTkLabel(user_info_card, text=f"{username}", font=('Kanit Regular', 32),text_color='white')
-        name_label.place(x=200, y=50)
+            # อัปเดต scrollregion ของ Canvas
+            self.main_con.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))
 
-        self.c.execute("SELECT id FROM users WHERE id = ?",(self.user_id,))  
-        id = self.c.fetchone()[0]  
+            # ฟังก์ชันสำหรับการเลื่อน Canvas เมื่อใช้ Scroll Wheel
+            def on_mouse_scroll(event):
+                self.scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+                if event.delta > 0 or event.keysym == 'Up':     # เลื่อนขึ้น
+                    self.scroll_canvas.yview_scroll(-1, "units")
+                elif event.delta < 0 or event.keysym == 'Down': # เลื่อนลง
+                    self.scroll_canvas.yview_scroll(1, "units")        
 
-        userid_label = ctk.CTkLabel(user_info_card, text=f"ID: {id}", font=('Kanit Regular', 32))
-        userid_label.place(x=200, y=100)
+            # ผูก Scroll Wheel เข้ากับ Canvas
+            self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
+            self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
+            self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows
+            user_info_card = ctk.CTkFrame(self.main_con, fg_color='#ff3131', width=600, height=200, corner_radius=15)
+            user_info_card.grid(row=0, column=0, padx=200,pady=50)
 
-        user_info = ctk.CTkFrame(self.main_con, fg_color='#6b6969', width=600, height=400, corner_radius=15)
-        user_info.grid(row=1, column=0, padx=200,pady=20)
+            profile_image = Image.open(r'D:\python_finalproject\img\icon\white\24.png') 
+            profile_img_icon = ctk.CTkImage(profile_image, size=(160, 100))  
 
-        self.c.execute("SELECT fname FROM users WHERE id = ?",(self.user_id,))  
-        fname = self.c.fetchone()[0]  
-        fname_label = ctk.CTkLabel(user_info, text=f"ชื่อจริง :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        fname_label.place(x=30, y=30)
-        fname_label2 = ctk.CTkLabel(user_info, text=f"{fname}", font=('Kanit Regular', 20), text_color='white')
-        fname_label2.place(x=100, y=30)
+            profile_img_label = ctk.CTkLabel(user_info_card, image=profile_img_icon,text='')
+            profile_img_label.place(x=20, y=50) 
 
-        self.c.execute("SELECT lname FROM users WHERE id = ?",(self.user_id,))  
-        lname = self.c.fetchone()[0]  
-        lname_label = ctk.CTkLabel(user_info, text=f"นามสกุล :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        lname_label.place(x=30, y=60)
-        lname_label2 = ctk.CTkLabel(user_info, text=f"{lname}", font=('Kanit Regular', 20), text_color='white')
-        lname_label2.place(x=100, y=60)
+            self.c.execute("SELECT username FROM users WHERE id = ?",(self.user_id,))  
+            username = self.c.fetchone()[0]  
 
-        self.c.execute("SELECT email FROM users WHERE id = ?",(self.user_id,))  
-        email = self.c.fetchone()[0]  
-        email_label = ctk.CTkLabel(user_info, text=f"Email :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        email_label.place(x=30, y=90)
-        email_label2 = ctk.CTkLabel(user_info, text=f"{email}", font=('Kanit Regular', 20), text_color='white')
-        email_label2.place(x=100, y=90)
+            name_label = ctk.CTkLabel(user_info_card, text=f"{username}", font=('Kanit Regular', 32),text_color='white')
+            name_label.place(x=200, y=50)
 
-        self.c.execute("SELECT Bank_name FROM users WHERE id = ?",(self.user_id,))  
-        Bank_name = self.c.fetchone()[0]  
-        bankname_label = ctk.CTkLabel(user_info, text=f"ธนาคาร :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        bankname_label.place(x=30, y=120)
-        bankname_label2 = ctk.CTkLabel(user_info, text=f"{Bank_name}", font=('Kanit Regular', 20), text_color='white')
-        bankname_label2.place(x=110, y=120)
+            self.c.execute("SELECT id FROM users WHERE id = ?",(self.user_id,))  
+            id = self.c.fetchone()[0]  
 
-        self.c.execute("SELECT Bank_number FROM users WHERE id = ?",(self.user_id,))  
-        Bank_number = self.c.fetchone()[0]  
-        Bank_number_label = ctk.CTkLabel(user_info, text=f"เลขที่บัญชี :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        Bank_number_label.place(x=30, y=150)
-        bank_number_label2 = ctk.CTkLabel(user_info, text=f"{Bank_number}", font=('Kanit Regular', 20), text_color='white')
-        bank_number_label2.place(x=125, y=150)
+            userid_label = ctk.CTkLabel(user_info_card, text=f"ID: {id}", font=('Kanit Regular', 32))
+            userid_label.place(x=200, y=100)
 
-        self.c.execute("SELECT phone FROM users WHERE id = ?",(self.user_id,))  
-        phone = self.c.fetchone()[0]  
-        phone_label = ctk.CTkLabel(user_info, text=f"เบอร์โทรศัพท์ :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        phone_label.place(x=30, y=180)
-        phone_label2 = ctk.CTkLabel(user_info, text=f"{phone}", font=('Kanit Regular', 20), text_color='white')
-        phone_label2.place(x=150, y=180)
-        '''
-        self.c.execute("SELECT Address FROM users WHERE id = ?",(self.user_id,))  
-        Address = self.c.fetchone()[0]  
-        Address_label = ctk.CTkLabel(user_info, text=f"ที่อยู่ :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        Address_label.place(x=30, y=210)
-        Address_label2 = ctk.CTkLabel(user_info, text=f"{Address}", font=('Kanit Regular', 20), text_color='white')
-        Address_label2.place(x=100, y=210)
-        '''
-        self.c.execute("SELECT Address FROM users WHERE id = ?", (self.user_id,))
-        Address = self.c.fetchone()[0]
-        Address_label = ctk.CTkLabel(user_info, text=f"ที่อยู่ :", font=('Kanit Regular', 20), text_color='#cfcfcf')
-        Address_label.place(x=30, y=210)
-        Address_label2 = ctk.CTkTextbox(user_info, width=400, height=60, font=('Kanit Regular', 20), text_color='white', fg_color="#6b6969")
-        Address_label2.insert("0.0", Address) 
-        Address_label2.configure(state="disabled")  
-        Address_label2.place(x=100, y=210)
-        
-                
-        edit_profile_button = ctk.CTkButton(user_info, text="แก้ไขโปรไฟล์", 
+            user_info = ctk.CTkFrame(self.main_con, fg_color='#6b6969', width=600, height=400, corner_radius=15)
+            user_info.grid(row=1, column=0, padx=200,pady=20)
+
+            self.c.execute("SELECT fname FROM users WHERE id = ?",(self.user_id,))  
+            fname = self.c.fetchone()[0]  
+            fname_label = ctk.CTkLabel(user_info, text=f"ชื่อจริง :", font=('Kanit Regular', 20),text_color='#cfcfcf')
+            fname_label.place(x=30, y=30)
+            fname_label2 = ctk.CTkLabel(user_info, text=f"{fname}", font=('Kanit Regular', 20), text_color='white')
+            fname_label2.place(x=100, y=30)
+
+            self.c.execute("SELECT lname FROM users WHERE id = ?",(self.user_id,))  
+            lname = self.c.fetchone()[0]  
+            lname_label = ctk.CTkLabel(user_info, text=f"นามสกุล :", font=('Kanit Regular', 20),text_color='#cfcfcf')
+            lname_label.place(x=30, y=60)
+            lname_label2 = ctk.CTkLabel(user_info, text=f"{lname}", font=('Kanit Regular', 20), text_color='white')
+            lname_label2.place(x=100, y=60)
+
+            self.c.execute("SELECT email FROM users WHERE id = ?",(self.user_id,))  
+            email = self.c.fetchone()[0]  
+            email_label = ctk.CTkLabel(user_info, text=f"Email :", font=('Kanit Regular', 20),text_color='#cfcfcf')
+            email_label.place(x=30, y=90)
+            email_label2 = ctk.CTkLabel(user_info, text=f"{email}", font=('Kanit Regular', 20), text_color='white')
+            email_label2.place(x=100, y=90)
+
+            self.c.execute("SELECT Bank_name FROM users WHERE id = ?",(self.user_id,))  
+            Bank_name = self.c.fetchone()[0]  
+            bankname_label = ctk.CTkLabel(user_info, text=f"ธนาคาร :", font=('Kanit Regular', 20),text_color='#cfcfcf')
+            bankname_label.place(x=30, y=120)
+            bankname_label2 = ctk.CTkLabel(user_info, text=f"{Bank_name}", font=('Kanit Regular', 20), text_color='white')
+            bankname_label2.place(x=110, y=120)
+
+            self.c.execute("SELECT Bank_number FROM users WHERE id = ?",(self.user_id,))  
+            Bank_number = self.c.fetchone()[0]  
+            Bank_number_label = ctk.CTkLabel(user_info, text=f"เลขที่บัญชี :", font=('Kanit Regular', 20),text_color='#cfcfcf')
+            Bank_number_label.place(x=30, y=150)
+            bank_number_label2 = ctk.CTkLabel(user_info, text=f"{Bank_number}", font=('Kanit Regular', 20), text_color='white')
+            bank_number_label2.place(x=125, y=150)
+
+            self.c.execute("SELECT phone FROM users WHERE id = ?",(self.user_id,))  
+            phone = self.c.fetchone()[0]  
+            phone_label = ctk.CTkLabel(user_info, text=f"เบอร์โทรศัพท์ :", font=('Kanit Regular', 20),text_color='#cfcfcf')
+            phone_label.place(x=30, y=180)
+            phone_label2 = ctk.CTkLabel(user_info, text=f"{phone}", font=('Kanit Regular', 20), text_color='white')
+            phone_label2.place(x=150, y=180)
+            self.c.execute("SELECT Address FROM users WHERE id = ?", (self.user_id,))
+            Address = self.c.fetchone()[0]
+            Address_label = ctk.CTkLabel(user_info, text=f"ที่อยู่ :", font=('Kanit Regular', 20), text_color='#cfcfcf')
+            Address_label.place(x=30, y=210)
+            Address_label2 = ctk.CTkTextbox(user_info, width=400, height=60, font=('Kanit Regular', 20), text_color='white', fg_color="#6b6969")
+            Address_label2.insert("0.0", Address) 
+            Address_label2.configure(state="disabled")  
+            Address_label2.place(x=100, y=210)
+            
+            edit_profile_button = ctk.CTkButton(user_info, text="แก้ไขโปรไฟล์", 
+                                                width=150, height=30, 
+                                                fg_color='#2b2b2b', text_color='white',
+                                                hover_color='#000000',
+                                                command=self.edit_profile)
+            edit_profile_button.place(x=30, y=350)  
+
+            
+            view_lottery_button = ctk.CTkButton(user_info, text="ตรวจรางวัลหวย", 
                                             width=150, height=30, 
                                             fg_color='#2b2b2b', text_color='white',
                                             hover_color='#000000',
-                                            command=self.edit_profile)
-        edit_profile_button.place(x=30, y=350)  
-
-        
-        view_lottery_button = ctk.CTkButton(user_info, text="ตรวจรางวัลหวย", 
-                                           width=150, height=30, 
-                                           fg_color='#2b2b2b', text_color='white',
-                                           hover_color='#000000',
-                                           command=self.lottery_win_menu)
-        view_lottery_button.place(x=200, y=350) 
+                                            command=self.lottery_win_menu)
+            view_lottery_button.place(x=200, y=350) 
         
     def edit_profile(self):
         self.clear_main_con()  
-        self.main_container()
+        self.container = ctk.CTkFrame(self.store, width=1920, height=600, corner_radius=0, fg_color='white')
+        self.container.place(x=100, y=0,relx= 0,rely = 0, relwidth =1 ,relheight = 1 )
+
+        # สร้าง Canvas
+        self.scroll_canvas = tk.Canvas(self.container, bg='white',highlightthickness=0)
+        self.scroll_canvas.place(x=0, y=0, width=1920, height=600)
+
+        # สร้าง Scrollbar
+        self.scrollbar1 = ctk.CTkScrollbar(self.container, orientation='vertical',hover='white'
+                                           ,corner_radius=10,
+                                           fg_color='white',
+                                           bg_color='white',button_color='white',
+                                           width=18,height=100
+                                           ,command=self.scroll_canvas.yview)
+        
+        self.scrollbar1.place(x=1902, y=0)
+        self.scroll_canvas.configure(yscrollcommand=self.scrollbar1.set)
+
+        # สร้าง Frame ภายใน Canvas
+        self.main_con = tk.Frame(self.scroll_canvas, bg='#ffffff')
+
+        self.scroll_canvas.create_window((0, 0), window=self.main_con, anchor='nw')
+
+        # อัปเดต scrollregion ของ Canvas
+        self.main_con.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))
+
+        # ฟังก์ชันสำหรับการเลื่อน Canvas เมื่อใช้ Scroll Wheel
+        def on_mouse_scroll(event):
+            self.scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            if event.delta > 0 or event.keysym == 'Up':     # เลื่อนขึ้น
+                self.scroll_canvas.yview_scroll(-1, "units")
+            elif event.delta < 0 or event.keysym == 'Down': # เลื่อนลง
+                self.scroll_canvas.yview_scroll(1, "units")        
+
+        # ผูก Scroll Wheel เข้ากับ Canvas
+        self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
+        self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
+        self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows
 
         container_frame = ctk.CTkFrame(self.main_con, fg_color='#fbf5f5', width=700, height=900, corner_radius=15)
         container_frame.grid(row=1, column=0, padx=200, pady=20)
@@ -1677,7 +1918,6 @@ class main:
         for result_label in self.result_labels:
             result_label.configure(text="", fg_color="transparent")
 
-    # admin เริ่มตรงนี้
     def admin_menu_ui(self):
         self.root.destroy()  # ปิดหน้าต่างหลัก
         self.admin_store = tk.Tk()  # สร้างหน้าต่างใหม่สำหรับหน้าผู้ดูแลระบบ
@@ -1685,7 +1925,6 @@ class main:
         self.admin_store.geometry("1080x620")
         self.admin_store.title('ALL LOTTERY - Admin')
         self.admin_store.configure(bg="white")
-        self.admin_store.resizable(False, False)
         
         admin_bar = tk.Frame(self.admin_store, background='#ff914d', width=100, height=1080)
         admin_bar.place(x=0, y=0)
@@ -1773,90 +2012,15 @@ class main:
         self.admin_main_con.place(x=100, y=0, width=1820, height=1080)
     
         self.admin_page()
-    
+
     def logout_admin(self):
-        self.admin_store.destroy()  
-        '''
+        self.admin_store.destroy()
+        self.admin_store = None  
         self.root = tk.Tk() 
         self.root.geometry("1080x620")
         self.root.title('ALL LOTTERY')
         self.login_store()
-        '''
-    '''
-    def admin_page(self):
-        # สร้าง Container หลักสำหรับ Admin Page
-        self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='#ebe8e8')
-        self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
-
-        self.whiteframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=520, fg_color='white')
-        self.whiteframebg.place(x=50, y=80)
-
-        # สร้างกรอบสำหรับปุ่ม
-        self.button_frame = tk.Frame(self.whiteframebg, bg='white')  
-        self.button_frame.place(relx=0, rely=0.5, anchor='w') 
-
-        # ปุ่มจัดการข้อมูลลอตเตอรี่
-        manage_lottery_image = Image.open(r'D:\python_finalproject\img\icon\admin\viewlottery.png')  
-        manage_lottery_icon = ctk.CTkImage(manage_lottery_image, size=(740, 136))  
-        self.manage_lottery_btn = ctk.CTkButton(
-            self.button_frame,
-            fg_color='white',   
-            width=740,  
-            height=136,  
-            image=manage_lottery_icon,
-            command=self.manage_lottery_page, 
-            hover_color='white',
-            text=''  
-        )
-        self.manage_lottery_btn.grid(row=0, column=0, padx=20, pady=20)  
-
-        # ปุ่มจัดการข้อมูลผู้ใช้
-        manage_user_image = Image.open(r'D:\python_finalproject\img\icon\admin\viewuser.png')  
-        manage_user_icon = ctk.CTkImage(manage_user_image, size=(740, 136))  
-        self.manage_user_btn = ctk.CTkButton(
-            self.button_frame,
-            fg_color='white', 
-            width=740,  
-            height=136,  
-            image=manage_user_icon,
-            command=self.manage_user_page, 
-            hover_color='white',
-            text=''  
-        )
-        self.manage_user_btn.grid(row=1, column=0, padx=20, pady=20)  
-
-        # ปุ่มจัดการข้อมูลรางวัล
-        manage_prize_image = Image.open(r'D:\python_finalproject\img\icon\admin\viewprize.png')  
-        manage_prize_icon = ctk.CTkImage(manage_prize_image, size=(740, 136))  
-        self.manage_prize_btn = ctk.CTkButton(
-            self.button_frame,
-            fg_color='white', 
-            width=740,  
-            height=136,  
-            image=manage_prize_icon,
-            command=self.manage_prize_page, 
-            hover_color='white',
-            text=''  
-        )
-        self.manage_prize_btn.grid(row=2, column=0, padx=20, pady=20)  
-
-        manage_order_admin_image = Image.open(r'D:\python_finalproject\img\icon\admin\viewprize.png')  
-        manage_order_admin_icon = ctk.CTkImage(manage_order_admin_image, size=(740, 136))  
-        self.manage_order_admin_btn = ctk.CTkButton(
-            self.button_frame,
-            fg_color='white', 
-            width=740,  
-            height=136,  
-            image=manage_order_admin_icon,
-            command=self.manage_prize_page, 
-            hover_color='white',
-            text=''  
-        )
-        self.manage_prize_btn.grid(row=3, column=0, padx=20, pady=20)  
-
-        # อัปเดตแสดงผล
-        self.admin_container.update()
-    '''
+   
     def admin_page(self):
         # สร้าง Container หลักสำหรับ Admin Page
         self.admin_container = ctk.CTkFrame(
@@ -2398,6 +2562,9 @@ class main:
         delete_btn = ctk.CTkButton(self.whiteframebg, text="ลบข้อมูล", font=('Kanit Regular', 16), fg_color='black', command=self.delete_prize)
         delete_btn.place(x=180, y=420)
 
+        export_excel_btn = ctk.CTkButton(self.whiteframebg, text="นำออกเป็น Excel", font=('Kanit Regular', 16), fg_color='black', command=self.export_to_excel)
+        export_excel_btn.place(x=500, y=420)  
+
         back_btn = ctk.CTkButton(self.whiteframebg, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.admin_page)
         back_btn.place(x=650, y=420)
 
@@ -2534,6 +2701,21 @@ class main:
 
             self.refresh_user_list()
 
+    def export_to_excel(self):
+        columns = self.prize_tree['columns']
+        data = []
+
+        for row in self.prize_tree.get_children():
+            data.append(self.prize_tree.item(row)['values'])
+
+        df = pd.DataFrame(data, columns=columns)
+
+        try:
+            df.to_excel('lottery_prize.xlsx', index=False)
+            messagebox.showinfo("สำเร็จ", "ข้อมูลถูกส่งออกไปยัง Excel เรียบร้อยแล้ว")
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"เกิดข้อผิดพลาด: {str(e)}")        
+
     def manage_order_admin_page(self):
         self.clear_admin_main_con() 
         self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
@@ -2657,7 +2839,6 @@ class main:
             self.img_tk = ImageTk.PhotoImage(img)  
             image_label = ctk.CTkLabel(self.greyframebg, text='', image=self.img_tk)
             image_label.place(x=40, y=70)  
-
         # สร้าง Label และ Entry สำหรับข้อมูล
         order_id_label = ctk.CTkLabel(self.greyframebg, text="ID", font=('Kanit Regular', 16))
         order_id_label.place(x=350, y=70)
@@ -2721,7 +2902,6 @@ class main:
         self.cash_entry.insert(0, order_data[5])  
         self.status_entry.insert(0, order_data[6])  
 
-
     def fetch_image_from_db(self, user_order):
         self.connect_to_db()  
         self.c.execute('SELECT slip FROM save WHERE username_save = ?', (user_order,))
@@ -2730,7 +2910,6 @@ class main:
         if image_data:
             return image_data[0]  
         return None  
-        
 
     def save_order_edit(self):
         # Gather the new data from each entry
@@ -2812,7 +2991,6 @@ class main:
             self.order_tree.delete(selected_item)
 
             self.refresh_order_list()
-
 
     # icon ทางซ้ายๆ
     def add_lottery_page(self):
@@ -3046,12 +3224,13 @@ class main:
 
         self.lottery_type_entry.delete(0, 'end')
         self.lottery_number_entry.delete(0, 'end')
-        self.prize_amount_entry.delete(0, 'end')
+        self.prize_amount_entry.delete(0, 'end')   
 
 if __name__ == "__main__":
     root = tk.Tk()
     app = main(root)
     default_font = ("Prompt",8)  
     root.option_add("*Font", default_font)
+    root.option_add("*Foreground", "black")
 
     root.mainloop()
