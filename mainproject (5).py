@@ -90,8 +90,8 @@ class main:
                 price_save INTEGER NOT NULL,
                 status_save TEXT NOT NULL,
                 slip_order  BLOB NOT NULL,
-                order_code TEXT NOT NULL
-
+                order_code TEXT NOT NULL,
+                win_prize TEXT NOT NULL
                 )''')
             self.conn.commit()
             
@@ -1339,10 +1339,10 @@ class main:
                 self.c.execute(
                     '''
                     INSERT INTO save (
-                        username_save, num_lottery_save, amount_save, price_save, status_save, img_lottery_save, slip_order, order_code
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        username_save, num_lottery_save, amount_save, price_save, status_save, img_lottery_save, slip_order, order_code, win_prize
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''',
-                    (username, num_lottery, amount, price, status, img_binary_lot, slip_order, code_key)
+                    (username, num_lottery, amount, price, status, img_binary_lot, slip_order, code_key,'รอประกาศผล')
                 )
                 self.conn.commit()
                 
@@ -3295,7 +3295,7 @@ class main:
         horiz_scrollbar = tk.Scrollbar(frame, orient="horizontal")
         horiz_scrollbar.pack(side="bottom", fill="x")
 
-        columns = ("ID", "Username", "Lottery Number", "Amount", "Price", "Status", "Order Code")
+        columns = ("ID", "Username", "Lottery Number", "Amount", "Price", "Status", "Order Code","Win Prize")
         self.save_tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=vert_scrollbar.set, xscrollcommand=horiz_scrollbar.set)
 
         for col in columns:
@@ -3324,7 +3324,7 @@ class main:
                 self.save_tree.delete(row)
 
             self.c.execute('''
-                SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code 
+                SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize
                 FROM save
             ''')
             rows = self.c.fetchall()
@@ -3342,7 +3342,7 @@ class main:
             self.save_tree.delete(row)
 
         query = """
-        SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code 
+        SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize 
         FROM save
         WHERE username_save LIKE ?
         OR num_lottery_save LIKE ?
@@ -3350,6 +3350,7 @@ class main:
         OR price_save LIKE ?
         OR status_save LIKE ?
         OR order_code LIKE ?
+        OR win_prize LIKE ?
         """
         self.c.execute(query, ('%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%', 
                             '%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%'))
@@ -3428,12 +3429,18 @@ class main:
         self.order_code_entry.place(x=500, y=320)
         self.order_code_entry.insert(0, selected_save[6])
 
+        win_prize_label = ctk.CTkLabel(self.greyframebg, text="Win Prize", font=('Kanit Regular', 16))
+        win_prize_label.place(x=350, y=370)
+        self.win_prize_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.win_prize_entry.place(x=500, y=370)
+        self.win_prize_entry.insert(0, selected_save[7])
+
         # ปุ่มยืนยันการแก้ไข
         save_btn = ctk.CTkButton(self.greyframebg, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.save_save_edit)
-        save_btn.place(x=350, y=400)
+        save_btn.place(x=350, y=420)
 
         back_btn = ctk.CTkButton(self.greyframebg, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.manage_save_admin_page)
-        back_btn.place(x=550, y=400)
+        back_btn.place(x=550, y=420)
 
     def load_save_data_to_edit(self, selected_save):
         self.username_entry.insert(0, selected_save[1])
@@ -3442,6 +3449,7 @@ class main:
         self.price_entry.insert(0, selected_save[4])
         self.status_combobox.set(selected_save[5])
         self.order_code_entry.insert(0, selected_save[6])
+        self.win_prize_entry.insert(0,selected_save[7])
 
     def save_save_edit(self):
         new_data = [
@@ -3450,7 +3458,8 @@ class main:
             self.amount_entry.get(),
             self.price_entry.get(),
             self.status_combobox.get(),
-            self.order_code_entry.get()
+            self.order_code_entry.get(),
+            self.win_prize_entry.get()
         ]
         
         selected_item = self.save_tree.selection()
@@ -3470,6 +3479,7 @@ class main:
         price_save = new_data[3]
         status_save = new_data[4]
         order_code = new_data[5]
+        win_pirze = new_data[6]
 
         # อัปเดตสถานะของทุกแถวที่มี order_code เดียวกัน
         if status_save == "ชำระเงินแล้ว" or status_save == "ยังไม่ชำระ":
@@ -3481,9 +3491,9 @@ class main:
         else:
             cursor.execute('''
                 UPDATE save
-                SET username_save=?, num_lottery_save=?, amount_save=?, price_save=?, status_save=?, order_code=?
+                SET username_save=?, num_lottery_save=?, amount_save=?, price_save=?, status_save=?, order_code=?, win_prize=?
                 WHERE id=?
-            ''', (username, num_lottery, amount_save, price_save, status_save, order_code, save_id))
+            ''', (username, num_lottery, amount_save, price_save, status_save, order_code, win_pirze, save_id))
 
         conn.commit()
         conn.close()
