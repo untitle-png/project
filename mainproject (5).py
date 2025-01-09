@@ -54,7 +54,8 @@ class main:
                 num_id TEXT NOT NULL,
                 price INTEGER NOT NULL,
                 amount INTEGER NOT NULL,
-                img_lottery BLOB NOT NULL)''')
+                img_lottery BLOB NOT NULL,
+                lottery_date DATE NOT NULL)''')
             self.conn.commit()
             
             self.c.execute('''CREATE TABLE IF NOT EXISTS orders(
@@ -66,6 +67,7 @@ class main:
                 price_orders INTEGER NOT NULL,
                 Cash INTEGER NOT NULL,
                 status TEXT NOT NULL,
+                type_lottery varchar(30) NOT NULL,
                 timestamp INTEGER NOT NULL
             )''')
             self.conn.commit()
@@ -941,20 +943,31 @@ class main:
 
     def add_cart(self, num_lottery, img_data, amount_selected, price_data):
         try:
+            # เชื่อมต่อกับฐานข้อมูล
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
 
-            amount = int(amount_selected)
-            username = self.username  
+            # ตรวจสอบว่าค่าของ amount_selected และ price_data เป็นตัวเลขก่อน
+            if not amount_selected.isdigit() or not price_data.isdigit():
+                tkinter.messagebox.showwarning("Warning", "กรุณากรอกจำนวนและราคาที่ถูกต้อง")
+                return
+
+            amount = int(amount_selected)  # แปลง amount_selected เป็นตัวเลข
+            price = int(price_data)  # แปลง price_data เป็นตัวเลข
+            username = self.username
             timestamp = int(time.time())  # เก็บเวลาปัจจุบันในรูปแบบ Unix Timestamp
+
+            type_lottery = self.lottery_type_entry.get()  # ค่าประเภทลอตเตอรี่
 
             # ตรวจสอบว่ามีข้อมูลในตาราง orders
             self.c.execute('SELECT * FROM orders WHERE orders_lottery_num = ? AND User_orders = ?', 
                         (num_lottery, username))
             order = self.c.fetchone()
+
             if order:
+                # ถ้ามีรายการเดิมอยู่แล้ว ให้เพิ่มจำนวนเข้าไป
                 new_amount = order[4] + amount
-                price_order = new_amount * price_data
+                price_order = new_amount * price
 
                 # อัปเดตตาราง orders
                 self.c.execute('''
@@ -963,22 +976,28 @@ class main:
                         amount_orders = ?, 
                         price_orders = ?, 
                         cash = ?, 
-                        status = ?, 
+                        status = ?,
+                        type_lottery = ?, 
                         timestamp = ?  
                     WHERE orders_lottery_num = ? AND User_orders = ?
-                ''', (img_data, new_amount, int(price_order), 0, 'ยังไม่ชำระ', timestamp, num_lottery, username))
+                ''', (img_data, new_amount, price_order, 0, 'ยังไม่ชำระ', type_lottery, timestamp, num_lottery, username))
             else:
-                # เพิ่มรายการใหม่ในตาราง orders
+                # ถ้าไม่พบรายการ ให้เพิ่มรายการใหม่
                 self.c.execute('''
-                    INSERT INTO orders (User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status, timestamp) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (username, num_lottery, img_data, amount, price_data, 0, 'ยังไม่ชำระ', timestamp))
+                    INSERT INTO orders (User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status, type_lottery, timestamp) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (username, num_lottery, img_data, amount, price * amount, 0, 'ยังไม่ชำระ', type_lottery, timestamp))
 
+            # ยืนยันการเปลี่ยนแปลงในฐานข้อมูล
             self.conn.commit()
             tkinter.messagebox.showinfo("Success", "เพิ่มล็อตเตอรี่ลงในตะกร้าเรียบร้อยแล้ว!")
+
         except Exception as e:
             print(f"Error adding to cart: {e}")
+            tkinter.messagebox.showerror("Error", f"เกิดข้อผิดพลาดในการเพิ่มข้อมูล: {e}")
+        
         finally:
+            # ปิดการเชื่อมต่อฐานข้อมูล
             self.conn.close()
 
     def remove_expired_orders(self):
@@ -2169,7 +2188,7 @@ class main:
         horiz_scrollbar = tk.Scrollbar(frame, orient="horizontal")
         horiz_scrollbar.pack(side="bottom", fill="x")
 
-        columns = ("ID", "Type", "Number ID", "Price", "Amount")
+        columns = ("ID", "Type", "Number ID", "Price", "Amount","Lottery Date")
         self.lottery_tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=vert_scrollbar.set, xscrollcommand=horiz_scrollbar.set)
 
         for col in columns:
@@ -2198,7 +2217,7 @@ class main:
             self.lottery_tree.delete(row)
 
 
-        self.c.execute('SELECT id, type_lottery, num_id, price, amount FROM lottery')
+        self.c.execute('SELECT id, type_lottery, num_id, price, amount, lottery_date FROM lottery')
         rows = self.c.fetchall()
 
         for row in rows:
@@ -2223,29 +2242,7 @@ class main:
             self.lottery_tree.insert("", tk.END, values=row)
 
         self.close_db()
-    '''
-    def edit_lottery(self):
-        self.edit_window = ctk.CTkToplevel(self.admin_container)
-        self.edit_window.title("แก้ไขข้อมูลล็อตเตอรรี่")
-        self.edit_window.geometry("400x400")  
-        
-        form_frame = ctk.CTkFrame(self.edit_window, fg_color="white")
-        form_frame.pack(pady=20, padx=20, fill="both", expand=True)
-        
-        labels = ["ID", "Lottery Type", "Lottery Number", "Price", "Amount"]
-        self.entries_lottery = []  
-        
-        for i, label in enumerate(labels):
-            ctk.CTkLabel(form_frame, text=label, font=('Kanit Regular', 16)).grid(row=i, column=0, padx=10, pady=10)
-            entry_lottery = ctk.CTkEntry(form_frame)
-            entry_lottery.grid(row=i, column=1, padx=10, pady=10)
-            self.entries_lottery.append(entry_lottery) 
-
-        save_btn = ctk.CTkButton(form_frame, text="บันทึก", font=('Kanit Regular', 16), command=self.save_lottery_edits)
-        save_btn.grid(row=len(labels), column=0, columnspan=2, pady=20)
-
-        self.load_lottery_data_to_edit()
-    '''    
+    
     def edit_lottery(self):
         self.edit_lottery_window = ctk.CTkToplevel(self.admin_container)
         self.edit_lottery_window.title("แก้ไขข้อมูลล็อตเตอรรี่")
@@ -2257,7 +2254,7 @@ class main:
         form_frame = ctk.CTkFrame(self.edit_lottery_window, fg_color="white")
         form_frame.pack(pady=20, padx=20, fill="both", expand=True)
         
-        labels = ["ID", "Lottery Type", "Lottery Number", "Price", "Amount"]
+        labels = ["ID", "Lottery Type", "Lottery Number", "Price", "Amount","Lottery Date"]
         self.entries_lottery = []  
         
         for i, label in enumerate(labels):
@@ -3024,7 +3021,7 @@ class main:
         lottery_type_label = ctk.CTkLabel(self.greyframebg, text="ประเภทลอตเตอรรี่", font=('Kanit Regular', 16))
         lottery_type_label.place(x=100, y=150)
 
-        self.lottery_type_entry = ctk.CTkComboBox(self.greyframebg,values=["หวยเดี่ยว", "หวยชุด"],  width=300,  state="readonly")
+        self.lottery_type_entry = ctk.CTkComboBox(self.greyframebg, values=["หวยเดี่ยว", "หวยชุด"], width=300, state="readonly")
         self.lottery_type_entry.place(x=300, y=150)
 
         amount_label = ctk.CTkLabel(self.greyframebg, text="จำนวน", font=('Kanit Regular', 16))
@@ -3039,22 +3036,42 @@ class main:
         self.price_entry = ctk.CTkEntry(self.greyframebg, width=300)
         self.price_entry.place(x=300, y=250)
         
-        self.select_label = ctk.CTkLabel(self.greyframebg,text='เลือกรูปลอตเตอรี่ : ',font=('Kanit Regular', 16))
-        self.select_label.place(x=100,y=300)
-        
-        self.select_con =  ctk.CTkFrame(self.greyframebg,width=280,height=130,fg_color='white')
-        self.select_con.place(x = 300 , y =300)
-        self.select_status = ctk.CTkLabel(self.select_con,text='',font=('Kanit Regular', 14))
-        self.select_status.place(x = 0 , y = 0)
-        
-        self.select_file_btn = ctk.CTkButton(self.greyframebg,text='เลือกไฟล์', font=('Kanit Regular', 16),
-                                             command=self.select_file)
-        self.select_file_btn.place(x=600,y=300)
-        self.file_path =None
+        # วันที่ประกาศรางวัล
+        lottery_date_label = ctk.CTkLabel(self.greyframebg, text="วันที่ประกาศรางวัล", font=('Kanit Regular', 16))
+        lottery_date_label.place(x=100, y=300)
 
-        save_btn = ctk.CTkButton(self.greyframebg, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.add_lottery)
-        save_btn.place(x=400, y=450)
+        self.lottery_date_entry_day = ttk.Combobox(self.greyframebg, values=["1", "16"], width=5, state="readonly")
+        self.lottery_date_entry_day.place(x=350, y=300)
+
+        self.lottery_date_entry_month = ttk.Combobox(self.greyframebg, values=[
+            "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+            "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+        ], width=15, state="readonly")
+        self.lottery_date_entry_month.place(x=420, y=300)
+
+        current_year = datetime.now().year
+        self.lottery_date_entry_year = ttk.Combobox(self.greyframebg, values=list(range(current_year-1, current_year + 11)), width=6, state="readonly")
+        self.lottery_date_entry_year.place(x=560, y=300)
+
+        # เลือกไฟล์สลิป
+        self.select_label = ctk.CTkLabel(self.greyframebg, text='เลือกรูปลอตเตอรี่ : ', font=('Kanit Regular', 16))
+        self.select_label.place(x=100, y=350)
         
+        self.select_con = ctk.CTkFrame(self.greyframebg, width=280, height=130, fg_color='white')
+        self.select_con.place(x=300, y=350)
+        self.select_status = ctk.CTkLabel(self.select_con, text='', font=('Kanit Regular', 14))
+        self.select_status.place(x=0, y=0)
+        
+        self.select_file_btn = ctk.CTkButton(self.greyframebg, text='เลือกไฟล์', font=('Kanit Regular', 16), command=self.select_file)
+        self.select_file_btn.place(x=600, y=350)
+        
+        self.file_path = None
+
+        # ปุ่มบันทึก
+        save_btn = ctk.CTkButton(self.greyframebg, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.add_lottery)
+        save_btn.place(x=600, y=450)
+
+            
     def select_file(self):
         file_path = filedialog.askopenfilename(
             title="เลือกรูปลอตเตอรี่",
@@ -3063,7 +3080,7 @@ class main:
         if file_path:
             self.file_path = file_path
             img = Image.open(file_path)
-            img = img.resize((280, 130))  # ปรับขนาดภาพให้พอดีกับหน้าจอ
+            img = img.resize((280, 130)) 
             self.img_ctk = ctk.CTkImage(img, size=(280, 130))
           
             self.select_status.configure(image =self.img_ctk,text ='' )
@@ -3078,70 +3095,67 @@ class main:
         type_lottery = self.lottery_type_entry.get()
         amount = self.amount_entry.get()
         price = self.price_entry.get()
+        lottery_date_day = self.lottery_date_entry_day.get()
+        lottery_date_month = self.lottery_date_entry_month.get()
+        lottery_date_year = self.lottery_date_entry_year.get()
         image_path = self.file_path
-        # เปิดภาพ
-        self.img_lottery = Image.open(image_path)
-        
-        # แปลงภาพเป็นข้อมูลไบนารี
-        img_binary = io.BytesIO()
-        self.img_lottery.save(img_binary, format='JPEG')
-        img_binary_data = img_binary.getvalue()
-       
+
+        # ตรวจสอบการกรอกข้อมูล
+        if not num_lottery or not type_lottery or not amount.isdigit() or not price.isdigit() or not image_path:
+            tkinter.messagebox.showwarning("Warning", "กรุณากรอกข้อมูลให้ครบถ้วน")
+            return
+
         try:
-            self.c.execute('SELECT * FROM lottery WHERE num_id = ?',
-                        (num_lottery,))
+            # เปิดภาพ
+            self.img_lottery = Image.open(image_path)
+            
+            # แปลงภาพเป็นข้อมูลไบนารี
+            img_binary = io.BytesIO()
+            self.img_lottery.save(img_binary, format='JPEG')
+            img_binary_data = img_binary.getvalue()
+
+            # แปลงวันที่เป็นรูปแบบที่เหมาะสม
+            lottery_date = f"{lottery_date_day}-{lottery_date_month}-{lottery_date_year}"
+
+            # ตรวจสอบเลขลอตเตอรี่ในฐานข้อมูล
+            self.c.execute('SELECT * FROM lottery WHERE num_id = ?', (num_lottery,))
             current_amount = self.c.fetchone()
 
             if current_amount:
                 # ถ้าพบรายการแล้ว ให้เพิ่มจำนวนเข้าไป
-                new_amount = current_amount[3] 
-                self.c.execute('''
-                    UPDATE lottery 
-                    SET img_lottery = ?, 
-                        amount = ?, 
-                        price = ? 
-                    WHERE num_id = ? 
-                ''', (img_binary_data, new_amount, price * new_amount, num_lottery))
+                new_amount = current_amount[3] + int(amount)  # เพิ่มจำนวน
+                self.c.execute('''UPDATE lottery SET 
+                                    img_lottery = ?, 
+                                    amount = ?, 
+                                    price = ? 
+                                    WHERE num_id = ?''', 
+                            (img_binary_data, new_amount, int(price) * new_amount, num_lottery))
             else:
                 # ถ้าไม่พบรายการ ให้เพิ่มรายการใหม่
-                self.c.execute('''
-                    INSERT INTO lottery (num_id, img_lottery, amount, price, type_lottery) 
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (num_lottery, img_binary_data, amount, int(price) * int(amount),type_lottery))
+                self.c.execute('''INSERT INTO lottery (num_id, img_lottery, amount, price, type_lottery, lottery_date) 
+                                VALUES (?, ?, ?, ?, ?, ?)''', 
+                            (num_lottery, img_binary_data, int(amount), int(price) * int(amount), type_lottery, lottery_date))
 
             # ยืนยันการเปลี่ยนแปลงในฐานข้อมูล
             self.conn.commit()
             tkinter.messagebox.showinfo("Success", "เพิ่มล็อตเตอรี่ลงในตะกร้าเรียบร้อยแล้ว!")
-                                
+        
         except Exception as e:
             print(f"Error inserting data: {e}")
+            tkinter.messagebox.showerror("Error", f"เกิดข้อผิดพลาดในการเพิ่มข้อมูล: {e}")
+        
         finally:
             self.conn.close()
-
-    def save_lottery(self):
-        lottery_number = self.lottery_number_entry.get()
-        lottery_type = self.lottery_type_entry.get()
-        amount = self.amount_entry.get()
-        price = self.price_entry.get()
-
-        # Validate inputs
-        if lottery_number and lottery_type and amount.isdigit() and price.isdigit():
-            conn = sqlite3.connect('data.db')
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO lottery (num_id, type_lottery, amount, price) VALUES (?, ?, ?, ?)",
-                        (lottery_number, lottery_type, int(amount), int(price)))
-            conn.commit()
-            conn.close()
-            self.clear_add_lottery_fields()
-            self.refresh_lottery_list()
-        else:
-            print("กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง")  
 
     def clear_add_lottery_fields(self):
         self.lottery_number_entry.delete(0, tk.END)
         self.lottery_type_entry.delete(0, tk.END)
         self.amount_entry.delete(0, tk.END)
-        self.price_entry.delete(0, tk.END)       
+        self.price_entry.delete(0, tk.END) 
+
+        self.lottery_date_entry_day.set("")  
+        self.lottery_date_entry_month.set("") 
+        self.lottery_date_entry_year.set("")        
                
     def prize_lottery_page(self):
         self.clear_admin_main_con()  
@@ -3174,7 +3188,7 @@ class main:
         self.draw_date_entry_month.place(x=420, y=150)
 
         current_year = datetime.now().year
-        self.draw_date_entry_year = ttk.Combobox(self.greyframebg, values=list(range(current_year, current_year +11)), width=6, state="readonly")
+        self.draw_date_entry_year = ttk.Combobox(self.greyframebg, values=list(range(current_year-1, current_year +11)), width=6, state="readonly")
         self.draw_date_entry_year.place(x=560, y=150)
 
         prize_type_label = ctk.CTkLabel(self.greyframebg, text="ประเภทรางวัล", font=('Kanit Regular', 16))
