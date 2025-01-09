@@ -68,7 +68,7 @@ class main:
                 Cash INTEGER NOT NULL,
                 status TEXT NOT NULL,
                 type_lottery varchar(30) NOT NULL,
-                timestamp INTEGER NOT NULL
+                lottery_date DATE NOT NULL
             )''')
             self.conn.commit()
           
@@ -929,7 +929,7 @@ class main:
                                                 bg_color='#2b2b2b',
                                                 fg_color='#2b2b2b',
                                                 hover_color='black',
-                                                command=lambda n=num_lottery,i= img_data, a=amount_combo, p=price_data: self.add_cart(n, i,a.get(), p))
+                                                command=lambda n=num_lottery,i= img_data, a=amount_data, p=price_data ,t = typelot_data: self.add_cart(n, i,a, p,t))
                         pick_btn.place(x=70, y=145)
 
                     except Exception as e:
@@ -941,80 +941,87 @@ class main:
         self.conn.close()
 
 
-    def add_cart(self, num_lottery, img_data, amount_selected, price_data):
+    def add_cart(self, num_lottery, img_data, amount_selected, price_data, typelot_data):
         try:
             # เชื่อมต่อกับฐานข้อมูล
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
 
-            # ตรวจสอบว่าค่าของ amount_selected และ price_data เป็นตัวเลขก่อน
-            if not amount_selected.isdigit() or not price_data.isdigit():
-                tkinter.messagebox.showwarning("Warning", "กรุณากรอกจำนวนและราคาที่ถูกต้อง")
-                return
+            amount = int(amount_selected)
+            username = self.username  
 
-            amount = int(amount_selected)  # แปลง amount_selected เป็นตัวเลข
-            price = int(price_data)  # แปลง price_data เป็นตัวเลข
-            username = self.username
-            timestamp = int(time.time())  # เก็บเวลาปัจจุบันในรูปแบบ Unix Timestamp
+            # ค่าเริ่มต้นสำหรับ total_price
+            total_price = 0
 
-            type_lottery = self.lottery_type_entry.get()  # ค่าประเภทลอตเตอรี่
-
-            # ตรวจสอบว่ามีข้อมูลในตาราง orders
+            # ตรวจสอบว่ามีข้อมูลในตาราง orders หรือไม่
             self.c.execute('SELECT * FROM orders WHERE orders_lottery_num = ? AND User_orders = ?', 
                         (num_lottery, username))
             order = self.c.fetchone()
-
+            
+            # หากมีคำสั่งซื้อในตะกร้า
             if order:
-                # ถ้ามีรายการเดิมอยู่แล้ว ให้เพิ่มจำนวนเข้าไป
                 new_amount = order[4] + amount
-                price_order = new_amount * price
+                price_order = new_amount * price_data
+                total_price = price_order  # คำนวณราคาสุทธิของคำสั่งซื้อนี้
 
-                # อัปเดตตาราง orders
+                # อัพเดตตาราง orders
                 self.c.execute('''
                     UPDATE orders 
                     SET img_lottery_orders = ?, 
                         amount_orders = ?, 
                         price_orders = ?, 
                         cash = ?, 
-                        status = ?,
-                        type_lottery = ?, 
-                        timestamp = ?  
+                        status = ?
                     WHERE orders_lottery_num = ? AND User_orders = ?
-                ''', (img_data, new_amount, price_order, 0, 'ยังไม่ชำระ', type_lottery, timestamp, num_lottery, username))
-            else:
-                # ถ้าไม่พบรายการ ให้เพิ่มรายการใหม่
-                self.c.execute('''
-                    INSERT INTO orders (User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status, type_lottery, timestamp) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (username, num_lottery, img_data, amount, price * amount, 0, 'ยังไม่ชำระ', type_lottery, timestamp))
+                ''', (img_data, new_amount, price_order, 0, 'ยังไม่ชำระ', num_lottery, username))
+                self.conn.commit()
 
-            # ยืนยันการเปลี่ยนแปลงในฐานข้อมูล
-            self.conn.commit()
+            else:
+
+                self.c.execute('SELECT lottery_date FROM lottery WHERE num_id = ?', (num_lottery,))
+                lottery = self.c.fetchone()
+                lottery_date = lottery[0] if lottery else None
+
+                self.c.execute('''
+                    INSERT INTO orders (User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status, type_lottery, lottery_date) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (username, num_lottery, img_data, amount, price_data, 0, 'ยังไม่ชำระ', typelot_data, lottery_date))
+                self.conn.commit()
+
+                # ลดจำนวนล็อตเตอรี่ใน store
+                self.c.execute('SELECT amount FROM lottery WHERE num_id = ?', (num_lottery,))
+                lottery = self.c.fetchone()
+
+                if lottery:
+                    available_amount = lottery[0]
+                    if available_amount < amount:
+                        tkinter.messagebox.showwarning("Warning", "สต็อกไม่เพียงพอ!")
+                        return
+
+                    del_amount = available_amount - amount
+                    self.c.execute('''
+                        UPDATE lottery
+                        SET amount = ? 
+                        WHERE num_id = ? 
+                    ''', (del_amount, num_lottery))
+                    self.conn.commit()
+
+                    # หากจำนวนล็อตเตอรี่หมดก็ลบออกจากตาราง lottery
+                    if del_amount == 0:
+                        self.c.execute('DELETE FROM lottery WHERE num_id = ?', (num_lottery,))
+                        self.conn.commit()
+
+            # รีเฟรชหน้าแรกหลังเพิ่มล็อตเตอรี่ลงตะกร้า
+            self.home_page()                             
+
             tkinter.messagebox.showinfo("Success", "เพิ่มล็อตเตอรี่ลงในตะกร้าเรียบร้อยแล้ว!")
 
         except Exception as e:
             print(f"Error adding to cart: {e}")
-            tkinter.messagebox.showerror("Error", f"เกิดข้อผิดพลาดในการเพิ่มข้อมูล: {e}")
-        
-        finally:
-            # ปิดการเชื่อมต่อฐานข้อมูล
-            self.conn.close()
 
-    def remove_expired_orders(self):
-        try:
-            self.conn = sqlite3.connect('data.db')
-            self.c = self.conn.cursor()
-
-            current_time = int(time.time())  # เวลาปัจจุบัน
-            expired_time = current_time - 30  # ลบ 300 วินาที (5 นาที)
-
-            # ลบรายการที่ timestamp เกิน 5 นาที
-            self.c.execute('DELETE FROM orders WHERE timestamp < ? AND status = "ยังไม่ชำระ"', (expired_time,))
-            self.conn.commit()
-        except Exception as e:
-            print(f"Error removing expired orders: {e}")
         finally:
             self.conn.close()
+
 
     
     def cart_page(self):
@@ -1032,7 +1039,7 @@ class main:
 
             # ดึงข้อมูลการสั่งซื้อจากฐานข้อมูล
             try:
-                self.c.execute('SELECT User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status FROM orders WHERE User_orders = ?', (self.username,))
+                self.c.execute('SELECT User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status,type_lottery, lottery_date FROM orders WHERE User_orders = ?', (self.username,))
                 orders_data = self.c.fetchall()
             except Exception as e:
                 print(f"Error fetching orders: {e}")
@@ -1088,8 +1095,9 @@ class main:
 
             # แสดงรายการสินค้าในตะกร้า
             for i, order in enumerate(orders_data):
-                username_data, num_lottery, img_lot, amount, price, cash, status = order
+                username_data, num_lottery, img_lot, amount, price, cash, status, type_lot, lottery_date = order
                 self.total_price += float(price)
+
 
                 # โหลดและแสดงภาพลอตเตอรี่
                 try:
@@ -1180,8 +1188,6 @@ class main:
             print(f"Error : {e}")
         finally:
             self.conn.close()
-
- 
             
     def payment_ui(self):
             self.conn = sqlite3.connect('data.db')
@@ -1260,32 +1266,33 @@ class main:
 
     def delete_item_from_cart(self, order):
         try:
-            # ลบข้อมูลสินค้าออกจากฐานข้อมูล
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
-            
-            #add to stock before del from order
-            
-            
-            
-            self.c.execute(
-                'DELETE FROM orders WHERE User_orders = ? AND orders_lottery_num = ?',
-                (self.username, order[1])
-            )
+
+            lottery_date = order[8]  
+            num_lottery = order[1]  
+            type_lottery = order[7]  
+            price = order[4] 
+            amount = order[3] 
+            img_lottery = order[2]  
+
+            print(f"lottery_date: {lottery_date}, num_lottery: {num_lottery}, type_lottery: {type_lottery}, price: {price}, amount: {amount}, img_lottery: {img_lottery}")
+
+            self.c.execute('''INSERT INTO lottery (num_id, type_lottery, price, amount, img_lottery, lottery_date)
+                            VALUES (?, ?, ?, ?, ?, ?)''', 
+                            (num_lottery, type_lottery, price, amount, img_lottery, lottery_date))
             self.conn.commit()
 
-            # ดึงข้อมูลรายการสินค้าหลังจากลบ
-            self.c.execute('SELECT User_orders, orders_lottery_num FROM orders WHERE User_orders = ?', (self.username,))
-            remaining_orders = self.c.fetchall()
+            self.c.execute('''DELETE FROM orders WHERE User_orders = ? AND orders_lottery_num = ?''', 
+                            (self.username, num_lottery))
+            self.conn.commit()
 
-            
-            # อัปเดต UI โดยรีเฟรชตะกร้า
             self.cart_page()
+
         except Exception as e:
             print(f"Error deleting item: {e}")
         finally:
             self.conn.close()
-
 
     def clear_stock(self):
         try:
@@ -1300,7 +1307,7 @@ class main:
                 print("No orders found.")
                 return
             
-            code_key = str(uuid.uuid4())[:6]            
+            code_key = str(uuid.uuid4())[:6]  # สร้างรหัสการสั่งซื้อ
 
             for row in d:
                 # ดึงค่าจากแถว
@@ -1311,7 +1318,6 @@ class main:
                 price = row[5]
                 status = row[7]
 
-            
                 # แปลงภาพลอตเตอรี่เป็นไบนารี
                 img_binary_lot = None
                 if image_lottery:
@@ -1323,34 +1329,41 @@ class main:
                     except Exception as e:
                         print(f"Error processing lottery image: {e}")
 
-                
+                # กำหนดค่า img_binary_slip ให้เป็นไฟล์สลิปที่แนบมา หรือค่าว่างถ้าไม่มีสลิป
+                if 'img_binary_slip' in globals() and img_binary_slip:  # ตรวจสอบว่ามีการกำหนดค่าสลิปหรือไม่
+                    slip_order = img_binary_slip
+                else:
+                    slip_order = b""  # กำหนดค่าเริ่มต้นเป็นไฟล์เปล่า (เมื่อไม่มีสลิป)
+
                 # เพิ่มข้อมูลในตาราง save
                 self.c.execute(
                     '''
                     INSERT INTO save (
-                        username_save, num_lottery_save, amount_save, price_save, status_save, img_lottery_save,slip_order, order_code
-                    ) VALUES (?, ?,?, ?, ?, ?, ?, ?)
+                        username_save, num_lottery_save, amount_save, price_save, status_save, img_lottery_save, slip_order, order_code
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ''',
-                    (username, num_lottery, amount, price, status, img_binary_lot,img_binary_slip, code_key)
+                    (username, num_lottery, amount, price, status, img_binary_lot, slip_order, code_key)
                 )
                 self.conn.commit()
-                  
-                    
                 
-            self.c.execute(
-            'DELETE FROM orders WHERE User_orders = ? AND status = ?',
-            (self.username,status)
-                )
-            self.conn.commit()
-            
-            self.cart_page()
+                # ลบข้อมูลจากตาราง lottery
+                self.c.execute('DELETE FROM lottery WHERE num_id = ?', (num_lottery,))  # ใช้ num_id หรือชื่อคอลัมน์ที่ถูกต้อง
+                self.conn.commit()
 
-      
+            # ลบคำสั่งซื้อทั้งหมดที่ผู้ใช้ทำ
+            self.c.execute('DELETE FROM orders WHERE User_orders = ?', (self.username,))
+            self.conn.commit()
+
+            self.cart_page()  # รีเฟรชหน้าตะกร้า
+
         except Exception as e:
             print(f"Error in clear_stock: {e}")
         finally:
             if self.conn:
                 self.conn.close()
+
+
+
 
 
     def Mysave_page(self):
@@ -3036,8 +3049,8 @@ class main:
         self.price_entry = ctk.CTkEntry(self.greyframebg, width=300)
         self.price_entry.place(x=300, y=250)
         
-        # วันที่ประกาศรางวัล
-        lottery_date_label = ctk.CTkLabel(self.greyframebg, text="วันที่ประกาศรางวัล", font=('Kanit Regular', 16))
+        # งวด
+        lottery_date_label = ctk.CTkLabel(self.greyframebg, text="งวดของวันที่", font=('Kanit Regular', 16))
         lottery_date_label.place(x=100, y=300)
 
         self.lottery_date_entry_day = ttk.Combobox(self.greyframebg, values=["1", "16"], width=5, state="readonly")
