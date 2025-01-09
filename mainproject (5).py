@@ -1362,10 +1362,6 @@ class main:
             if self.conn:
                 self.conn.close()
 
-
-
-
-
     def Mysave_page(self):
         self.changeColor_icon(self.Mysave_page, "save", self.save_btn)
         self.clear_main_con()
@@ -1511,113 +1507,178 @@ class main:
                 continue
 
     def profile_page(self):
-        self.conn = sqlite3.connect('data.db')
-        self.c = self.conn.cursor()
-        self.changeColor_icon(self.profile_page,"profile",self.profile_btn)
-        self.clear_main_con() 
-        self.main_container()
+            self.conn = sqlite3.connect('data.db')
+            self.c = self.conn.cursor()
+            self.changeColor_icon(self.profile_page,"profile",self.profile_btn)
+            self.clear_main_con() 
+            
+            self.container = ctk.CTkFrame(self.store, width=1920, height=600, corner_radius=0, fg_color='white')
+            self.container.place(x=100, y=0,relx= 0,rely = 0, relwidth =1 ,relheight = 1 )
 
-        user_info_card = ctk.CTkFrame(self.main_con, fg_color='#ff3131', width=600, height=200, corner_radius=15)
-        user_info_card.grid(row=0, column=0, padx=200,pady=50)
+            # สร้าง Canvas
+            self.scroll_canvas = tk.Canvas(self.container, bg='white',highlightthickness=0)
+            self.scroll_canvas.place(x=0, y=0, width=1920, height=600)
 
-        profile_image = Image.open(r'D:\python_finalproject\img\icon\white\24.png') 
-        profile_img_icon = ctk.CTkImage(profile_image, size=(160, 100))  
+            # สร้าง Scrollbar
+            self.scrollbar1 = ctk.CTkScrollbar(self.container, orientation='vertical',hover='white'
+                                            ,corner_radius=10,
+                                            fg_color='white',
+                                            bg_color='white',button_color='white',
+                                            width=18,height=100
+                                            ,command=self.scroll_canvas.yview)
+            
+            self.scrollbar1.place(x=1902, y=0)
+            self.scroll_canvas.configure(yscrollcommand=self.scrollbar1.set)
 
-        profile_img_label = ctk.CTkLabel(user_info_card, image=profile_img_icon,text='')
-        profile_img_label.place(x=20, y=50) 
+            # สร้าง Frame ภายใน Canvas
+            self.main_con = tk.Frame(self.scroll_canvas, bg='#ffffff')
 
-        self.c.execute("SELECT username FROM users WHERE id = ?",(self.user_id,))  
-        username = self.c.fetchone()[0]  
+            self.scroll_canvas.create_window((0, 0), window=self.main_con, anchor='nw')
 
-        name_label = ctk.CTkLabel(user_info_card, text=f"{username}", font=('Kanit Regular', 32),text_color='white')
-        name_label.place(x=200, y=50)
+            # อัปเดต scrollregion ของ Canvas
+            self.main_con.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))
 
-        self.c.execute("SELECT id FROM users WHERE id = ?",(self.user_id,))  
-        id = self.c.fetchone()[0]  
+            # ฟังก์ชันสำหรับการเลื่อน Canvas เมื่อใช้ Scroll Wheel
+            def on_mouse_scroll(event):
+                self.scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+                if event.delta > 0 or event.keysym == 'Up':     # เลื่อนขึ้น
+                    self.scroll_canvas.yview_scroll(-1, "units")
+                elif event.delta < 0 or event.keysym == 'Down': # เลื่อนลง
+                    self.scroll_canvas.yview_scroll(1, "units")        
 
-        userid_label = ctk.CTkLabel(user_info_card, text=f"ID: {id}", font=('Kanit Regular', 32))
-        userid_label.place(x=200, y=100)
+            # ผูก Scroll Wheel เข้ากับ Canvas
+            self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
+            self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
+            self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows
+            user_info_card = ctk.CTkFrame(self.main_con, fg_color='#ff3131', width=600, height=200, corner_radius=15)
+            user_info_card.grid(row=0, column=0, padx=200,pady=50)
 
-        user_info = ctk.CTkFrame(self.main_con, fg_color='#6b6969', width=600, height=400, corner_radius=15)
-        user_info.grid(row=1, column=0, padx=200,pady=20)
+            profile_image = Image.open(r'D:\python_finalproject\img\icon\white\24.png') 
+            profile_img_icon = ctk.CTkImage(profile_image, size=(160, 100))  
 
-        self.c.execute("SELECT fname FROM users WHERE id = ?",(self.user_id,))  
-        fname = self.c.fetchone()[0]  
-        fname_label = ctk.CTkLabel(user_info, text=f"ชื่อจริง :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        fname_label.place(x=30, y=30)
-        fname_label2 = ctk.CTkLabel(user_info, text=f"{fname}", font=('Kanit Regular', 20), text_color='white')
-        fname_label2.place(x=100, y=30)
+            profile_img_label = ctk.CTkLabel(user_info_card, image=profile_img_icon,text='')
+            profile_img_label.place(x=20, y=50) 
 
-        self.c.execute("SELECT lname FROM users WHERE id = ?",(self.user_id,))  
-        lname = self.c.fetchone()[0]  
-        lname_label = ctk.CTkLabel(user_info, text=f"นามสกุล :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        lname_label.place(x=30, y=60)
-        lname_label2 = ctk.CTkLabel(user_info, text=f"{lname}", font=('Kanit Regular', 20), text_color='white')
-        lname_label2.place(x=100, y=60)
+            self.c.execute("SELECT username FROM users WHERE id = ?",(self.user_id,))  
+            username = self.c.fetchone()[0]  
 
-        self.c.execute("SELECT email FROM users WHERE id = ?",(self.user_id,))  
-        email = self.c.fetchone()[0]  
-        email_label = ctk.CTkLabel(user_info, text=f"Email :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        email_label.place(x=30, y=90)
-        email_label2 = ctk.CTkLabel(user_info, text=f"{email}", font=('Kanit Regular', 20), text_color='white')
-        email_label2.place(x=100, y=90)
+            name_label = ctk.CTkLabel(user_info_card, text=f"{username}", font=('Kanit Regular', 32),text_color='white')
+            name_label.place(x=200, y=50)
 
-        self.c.execute("SELECT Bank_name FROM users WHERE id = ?",(self.user_id,))  
-        Bank_name = self.c.fetchone()[0]  
-        bankname_label = ctk.CTkLabel(user_info, text=f"ธนาคาร :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        bankname_label.place(x=30, y=120)
-        bankname_label2 = ctk.CTkLabel(user_info, text=f"{Bank_name}", font=('Kanit Regular', 20), text_color='white')
-        bankname_label2.place(x=110, y=120)
+            self.c.execute("SELECT id FROM users WHERE id = ?",(self.user_id,))  
+            id = self.c.fetchone()[0]  
 
-        self.c.execute("SELECT Bank_number FROM users WHERE id = ?",(self.user_id,))  
-        Bank_number = self.c.fetchone()[0]  
-        Bank_number_label = ctk.CTkLabel(user_info, text=f"เลขที่บัญชี :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        Bank_number_label.place(x=30, y=150)
-        bank_number_label2 = ctk.CTkLabel(user_info, text=f"{Bank_number}", font=('Kanit Regular', 20), text_color='white')
-        bank_number_label2.place(x=125, y=150)
+            userid_label = ctk.CTkLabel(user_info_card, text=f"ID: {id}", font=('Kanit Regular', 32))
+            userid_label.place(x=200, y=100)
 
-        self.c.execute("SELECT phone FROM users WHERE id = ?",(self.user_id,))  
-        phone = self.c.fetchone()[0]  
-        phone_label = ctk.CTkLabel(user_info, text=f"เบอร์โทรศัพท์ :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        phone_label.place(x=30, y=180)
-        phone_label2 = ctk.CTkLabel(user_info, text=f"{phone}", font=('Kanit Regular', 20), text_color='white')
-        phone_label2.place(x=150, y=180)
-        '''
-        self.c.execute("SELECT Address FROM users WHERE id = ?",(self.user_id,))  
-        Address = self.c.fetchone()[0]  
-        Address_label = ctk.CTkLabel(user_info, text=f"ที่อยู่ :", font=('Kanit Regular', 20),text_color='#cfcfcf')
-        Address_label.place(x=30, y=210)
-        Address_label2 = ctk.CTkLabel(user_info, text=f"{Address}", font=('Kanit Regular', 20), text_color='white')
-        Address_label2.place(x=100, y=210)
-        '''
-        self.c.execute("SELECT Address FROM users WHERE id = ?", (self.user_id,))
-        Address = self.c.fetchone()[0]
-        Address_label = ctk.CTkLabel(user_info, text=f"ที่อยู่ :", font=('Kanit Regular', 20), text_color='#cfcfcf')
-        Address_label.place(x=30, y=210)
-        Address_label2 = ctk.CTkTextbox(user_info, width=400, height=60, font=('Kanit Regular', 20), text_color='white', fg_color="#6b6969")
-        Address_label2.insert("0.0", Address) 
-        Address_label2.configure(state="disabled")  
-        Address_label2.place(x=100, y=210)
-        
-                
-        edit_profile_button = ctk.CTkButton(user_info, text="แก้ไขโปรไฟล์", 
+            user_info = ctk.CTkFrame(self.main_con, fg_color='#6b6969', width=600, height=400, corner_radius=15)
+            user_info.grid(row=1, column=0, padx=200,pady=20)
+
+            self.c.execute("SELECT fname FROM users WHERE id = ?",(self.user_id,))  
+            fname = self.c.fetchone()[0]  
+            fname_label = ctk.CTkLabel(user_info, text=f"ชื่อจริง :", font=('Kanit Regular', 20),text_color='#cfcfcf')
+            fname_label.place(x=30, y=30)
+            fname_label2 = ctk.CTkLabel(user_info, text=f"{fname}", font=('Kanit Regular', 20), text_color='white')
+            fname_label2.place(x=100, y=30)
+
+            self.c.execute("SELECT lname FROM users WHERE id = ?",(self.user_id,))  
+            lname = self.c.fetchone()[0]  
+            lname_label = ctk.CTkLabel(user_info, text=f"นามสกุล :", font=('Kanit Regular', 20),text_color='#cfcfcf')
+            lname_label.place(x=30, y=60)
+            lname_label2 = ctk.CTkLabel(user_info, text=f"{lname}", font=('Kanit Regular', 20), text_color='white')
+            lname_label2.place(x=100, y=60)
+
+            self.c.execute("SELECT email FROM users WHERE id = ?",(self.user_id,))  
+            email = self.c.fetchone()[0]  
+            email_label = ctk.CTkLabel(user_info, text=f"Email :", font=('Kanit Regular', 20),text_color='#cfcfcf')
+            email_label.place(x=30, y=90)
+            email_label2 = ctk.CTkLabel(user_info, text=f"{email}", font=('Kanit Regular', 20), text_color='white')
+            email_label2.place(x=100, y=90)
+
+            self.c.execute("SELECT Bank_name FROM users WHERE id = ?",(self.user_id,))  
+            Bank_name = self.c.fetchone()[0]  
+            bankname_label = ctk.CTkLabel(user_info, text=f"ธนาคาร :", font=('Kanit Regular', 20),text_color='#cfcfcf')
+            bankname_label.place(x=30, y=120)
+            bankname_label2 = ctk.CTkLabel(user_info, text=f"{Bank_name}", font=('Kanit Regular', 20), text_color='white')
+            bankname_label2.place(x=110, y=120)
+
+            self.c.execute("SELECT Bank_number FROM users WHERE id = ?",(self.user_id,))  
+            Bank_number = self.c.fetchone()[0]  
+            Bank_number_label = ctk.CTkLabel(user_info, text=f"เลขที่บัญชี :", font=('Kanit Regular', 20),text_color='#cfcfcf')
+            Bank_number_label.place(x=30, y=150)
+            bank_number_label2 = ctk.CTkLabel(user_info, text=f"{Bank_number}", font=('Kanit Regular', 20), text_color='white')
+            bank_number_label2.place(x=125, y=150)
+
+            self.c.execute("SELECT phone FROM users WHERE id = ?",(self.user_id,))  
+            phone = self.c.fetchone()[0]  
+            phone_label = ctk.CTkLabel(user_info, text=f"เบอร์โทรศัพท์ :", font=('Kanit Regular', 20),text_color='#cfcfcf')
+            phone_label.place(x=30, y=180)
+            phone_label2 = ctk.CTkLabel(user_info, text=f"{phone}", font=('Kanit Regular', 20), text_color='white')
+            phone_label2.place(x=150, y=180)
+            self.c.execute("SELECT Address FROM users WHERE id = ?", (self.user_id,))
+            Address = self.c.fetchone()[0]
+            Address_label = ctk.CTkLabel(user_info, text=f"ที่อยู่ :", font=('Kanit Regular', 20), text_color='#cfcfcf')
+            Address_label.place(x=30, y=210)
+            Address_label2 = ctk.CTkTextbox(user_info, width=400, height=60, font=('Kanit Regular', 20), text_color='white', fg_color="#6b6969")
+            Address_label2.insert("0.0", Address) 
+            Address_label2.configure(state="disabled")  
+            Address_label2.place(x=100, y=210)
+            
+            edit_profile_button = ctk.CTkButton(user_info, text="แก้ไขโปรไฟล์", 
+                                                width=150, height=30, 
+                                                fg_color='#2b2b2b', text_color='white',
+                                                hover_color='#000000',
+                                                command=self.edit_profile)
+            edit_profile_button.place(x=30, y=350)  
+
+            
+            view_lottery_button = ctk.CTkButton(user_info, text="ตรวจรางวัลหวย", 
                                             width=150, height=30, 
                                             fg_color='#2b2b2b', text_color='white',
                                             hover_color='#000000',
-                                            command=self.edit_profile)
-        edit_profile_button.place(x=30, y=350)  
-
-        
-        view_lottery_button = ctk.CTkButton(user_info, text="ตรวจรางวัลหวย", 
-                                           width=150, height=30, 
-                                           fg_color='#2b2b2b', text_color='white',
-                                           hover_color='#000000',
-                                           command=self.lottery_win_menu)
-        view_lottery_button.place(x=200, y=350) 
+                                            command=self.lottery_win_menu)
+            view_lottery_button.place(x=200, y=350) 
         
     def edit_profile(self):
         self.clear_main_con()  
-        self.main_container()
+        self.container = ctk.CTkFrame(self.store, width=1920, height=600, corner_radius=0, fg_color='white')
+        self.container.place(x=100, y=0,relx= 0,rely = 0, relwidth =1 ,relheight = 1 )
+
+        # สร้าง Canvas
+        self.scroll_canvas = tk.Canvas(self.container, bg='white',highlightthickness=0)
+        self.scroll_canvas.place(x=0, y=0, width=1920, height=600)
+
+        # สร้าง Scrollbar
+        self.scrollbar1 = ctk.CTkScrollbar(self.container, orientation='vertical',hover='white'
+                                           ,corner_radius=10,
+                                           fg_color='white',
+                                           bg_color='white',button_color='white',
+                                           width=18,height=100
+                                           ,command=self.scroll_canvas.yview)
+        
+        self.scrollbar1.place(x=1902, y=0)
+        self.scroll_canvas.configure(yscrollcommand=self.scrollbar1.set)
+
+        # สร้าง Frame ภายใน Canvas
+        self.main_con = tk.Frame(self.scroll_canvas, bg='#ffffff')
+
+        self.scroll_canvas.create_window((0, 0), window=self.main_con, anchor='nw')
+
+        # อัปเดต scrollregion ของ Canvas
+        self.main_con.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))
+
+        # ฟังก์ชันสำหรับการเลื่อน Canvas เมื่อใช้ Scroll Wheel
+        def on_mouse_scroll(event):
+            self.scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            if event.delta > 0 or event.keysym == 'Up':     # เลื่อนขึ้น
+                self.scroll_canvas.yview_scroll(-1, "units")
+            elif event.delta < 0 or event.keysym == 'Down': # เลื่อนลง
+                self.scroll_canvas.yview_scroll(1, "units")        
+
+        # ผูก Scroll Wheel เข้ากับ Canvas
+        self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
+        self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
+        self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows
 
         container_frame = ctk.CTkFrame(self.main_con, fg_color='#fbf5f5', width=700, height=900, corner_radius=15)
         container_frame.grid(row=1, column=0, padx=200, pady=20)
@@ -1853,6 +1914,7 @@ class main:
             tkinter.messagebox.showinfo(title, message)
         elif msg_type == "error":
             tkinter.messagebox.showerror(title, message)
+
 
     def view_order_history(self):
         pass
