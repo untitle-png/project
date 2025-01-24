@@ -21,10 +21,12 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.colors import HexColor
 from tkinter import filedialog
 import os
-
-
 
 class main:
     def __init__(self, root):
@@ -1309,10 +1311,10 @@ class main:
         # ดึงวันที่ปัจจุบัน
         now = datetime.now()
         day = now.day  
-        month = self.thai_months[now.month - 1]  
+        self.month = self.thai_months[now.month - 1]  
         year = now.year 
 
-        return f"{day}-{month}-{year}"
+        return f"{day}-{self.month}-{year}"
 
     def clear_stock(self):
         try:
@@ -3833,6 +3835,10 @@ class main:
 
         conn.close()
 
+        export_btn = ctk.CTkButton(self.whiteframebg, text="นำออกเป็น pdf", font=('Kanit Regular', 16), fg_color='black', command=self.export_revenue_pdf)
+        export_btn.grid(row=5, column=0, columnspan=4, pady=20)  # จัดให้อยู่ในแถวสุดท้าย (row=5) ของกริด
+
+
     def calculate_saled_total(self):
         total = 0
         conn = sqlite3.connect('data.db')  
@@ -3845,7 +3851,98 @@ class main:
 
         conn.close()
         return f"฿{total:,.2f}"  
-        
+
+    def export_revenue_pdf(self):
+        # Register AngsanaNew font
+        pdfmetrics.registerFont(TTFont('AngsanaNew', r'C:\Windows\Fonts\ANGSANA.ttc'))
+
+        # Set file path for the PDF
+        file_path = f"D:/download/revenue_{self.month}.pdf"
+
+        # Check if the directory exists, create it if not
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+
+        # Create the PDF
+        pdf = SimpleDocTemplate(file_path, pagesize=letter)
+
+        # Connect to the database
+        conn = sqlite3.connect('data.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM revenue_report')
+        rows = cursor.fetchall()
+
+        # Get current date and month
+        now = datetime.now()
+        month_name = self.thai_months[now.month - 1]  # Thai month name
+        current_date = self.get_thai_date()  # Custom method to get the Thai date
+
+        # Calculate total sales
+        saled_total = self.calculate_saled_total()
+       
+        # Create Heading
+        heading_center = Paragraph(
+            f"รายงานผลประกอบการประจำเดือน {month_name}<br/>ของ AllLottery",
+            ParagraphStyle(name='CenterHeading', fontName='AngsanaNew', fontSize=16, alignment=1, leading=24, spaceAfter=6)
+        )
+        heading_left = Paragraph(f"ผู้พิมพ์: admin<br/>PRINT DATE: {current_date}", ParagraphStyle(name='LeftHeading', fontName='AngsanaNew', fontSize=12))
+        heading_right = Paragraph(f"ยอดรวม: {saled_total} บาท", ParagraphStyle(name='RightHeading', fontName='AngsanaNew', fontSize=12))
+
+        # Create header table
+        header_data = [[heading_left, heading_right]]
+        header_table = Table(header_data, colWidths=[300, 300])
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('FONTNAME', (0, 0), (-1, -1), 'AngsanaNew'),
+            ('FONTSIZE', (0, 0), (-1, -1), 12),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('TOPPADDING', (0, 0), (-1, 0), 6),
+        ]))
+
+        # Define header labels for the table
+        header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price']
+        data = [header_labels]
+
+        # Add data rows from the database
+        for row in rows:
+            data.append([
+                row[0],  # ID
+                row[1],  # Order Code
+                row[2],  # Lottery ID
+                f"{row[3]:,.2f}",  # Price format with commas and 2 decimal places
+                f"{row[4]:,.2f}",  # Amount format with commas and 2 decimal places
+                row[5],  # Lottery Date
+                f"{row[6]:,.2f}",  # Total Price format with commas and 2 decimal places
+            ])
+        conn.close()
+
+        # Create the table with formatted data
+        table = Table(data, colWidths=[50, 80, 80, 80, 80, 100, 100])  # Adjust column widths
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#DAE9F7')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+            ('ALIGN', (3, 1), (3, -1), 'RIGHT'),
+            ('ALIGN', (4, 1), (4, -1), 'RIGHT'),
+            ('ALIGN', (5, 1), (5, -1), 'RIGHT'),
+            ('ALIGN', (6, 1), (6, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'AngsanaNew'),
+            ('FONTSIZE', (0, 0), (-1, -1), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ]))
+
+        # Build the PDF
+        pdf.build([heading_center, header_table, table])
+        print(f"รายงานถูกสร้างเรียบร้อย: {file_path}")
+
+        # Open the PDF file
+        try:
+            os.startfile(file_path)
+        except Exception as e:
+            print(f"ไม่สามารถเปิดไฟล์ PDF ได้: {e}")
       
 
 if __name__ == "__main__":
