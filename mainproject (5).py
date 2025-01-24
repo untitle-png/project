@@ -42,6 +42,20 @@ class main:
         self.save_data = []  # กำหนดข้อมูลสำหรับ save_data
         self.order_code = None  # กำหนดตัวแปรสำหรับ order_code
         
+        #สร้างตัวแปรเก็บเดือนภาษาไทยเอาไว้ใช้แสดงชื่อเดือน & ธนาคาร
+        self.thai_months = [
+            "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+            "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+        ]
+        self.bank_name_value = ["ธนาคารกรุงเทพ", "ธนาคารกสิกรไทย", "ธนาคารกรุงไทย", "ธนาคารทหารไทย", "ธนาคารไทยพาณิชย์", 
+            "ธนาคารกรุงศรีอยุธยา", "ธนาคารเกียรตินาคิน", "ธนาคารซีไอเอ็มบีไทย", "ธนาคารทิสโก้", 
+            "ธนาคารธนชาต", "ธนาคารยูโอบี", "ธนาคารสแตนดาร์ดชาร์เตอร์ด (ไทย)", 
+            "ธนาคารไทยเครดิตเพื่อรายย่อย", "ธนาคารแลนด์ แอนด์ เฮาส์", 
+            "ธนาคารไอซีบีซี (ไทย)", "ธนาคารพัฒนาวิสาหกิจขนาดกลางและขนาดย่อมแห่งประเทศไทย", 
+            "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร", "ธนาคารเพื่อการส่งออกและนำเข้าแห่งประเทศไทย", 
+            "ธนาคารออมสิน", "ธนาคารอาคารสงเคราะห์", "ธนาคารอิสลามแห่งประเทศไทย", 
+            "ธนาคารแห่งประเทศจีน", "ธนาคารซูมิโตโม มิตซุย ทรัสต์ (ไทย)", 
+            "ธนาคารฮ่องกงและเซี้ยงไฮ้แบงกิ้งคอร์ปอเรชั่น จำกัด"]
 
     def create_data(self):
         try:
@@ -297,11 +311,7 @@ class main:
         self.dob_month = ttk.Combobox(
             master=self.signup_ui,
             font=('Prompt',8),
-            values=[
-                
-                "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-                "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-            ],
+            values=self.thai_months,
             width=18,
             height=8,justify='center'
         )
@@ -317,17 +327,7 @@ class main:
         self.et_email.place(x =260,y=368)
         self.et_banknumber = tk.Entry(self.signup_ui, width=14, font=('Prompt', 12), fg='black', bg='white', border=0)
         self.et_banknumber.place(x=260, y=428,width=130)
-        self.et_bankname = ttk.Combobox(self.signup_ui, values=[
-            "ธนาคารกรุงเทพ", "ธนาคารกสิกรไทย", "ธนาคารกรุงไทย", "ธนาคารทหารไทย", "ธนาคารไทยพาณิชย์", 
-            "ธนาคารกรุงศรีอยุธยา", "ธนาคารเกียรตินาคิน", "ธนาคารซีไอเอ็มบีไทย", "ธนาคารทิสโก้", 
-            "ธนาคารธนชาต", "ธนาคารยูโอบี", "ธนาคารสแตนดาร์ดชาร์เตอร์ด (ไทย)", 
-            "ธนาคารไทยเครดิตเพื่อรายย่อย", "ธนาคารแลนด์ แอนด์ เฮาส์", 
-            "ธนาคารไอซีบีซี (ไทย)", "ธนาคารพัฒนาวิสาหกิจขนาดกลางและขนาดย่อมแห่งประเทศไทย", 
-            "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร", "ธนาคารเพื่อการส่งออกและนำเข้าแห่งประเทศไทย", 
-            "ธนาคารออมสิน", "ธนาคารอาคารสงเคราะห์", "ธนาคารอิสลามแห่งประเทศไทย", 
-            "ธนาคารแห่งประเทศจีน", "ธนาคารซูมิโตโม มิตซุย ทรัสต์ (ไทย)", 
-            "ธนาคารฮ่องกงและเซี้ยงไฮ้แบงกิ้งคอร์ปอเรชั่น จำกัด"
-        ], width=20, font=('Prompt', 8),justify='center')
+        self.et_bankname = ttk.Combobox(self.signup_ui, values=self.bank_name_value, width=20, font=('Prompt', 8),justify='center')
         self.et_bankname.place(x=408, y=428,width=98,height=25)
 
         self.et_adress = tk.Text(self.signup_ui,width=22,heigh=8,font=('Prompt',8), fg='black', bg='white',border=0)
@@ -604,7 +604,22 @@ class main:
             img = Image.open(icon_settings[add_icon])
             img_icon = ctk.CTkImage(img, size=(80, 40))
             icon_config.configure(image=img_icon, text_color='#2b2b2b')   
-                 
+        
+    def on_mouse_scroll(self, event):
+        current_scroll_pos = self.scroll_canvas.yview()
+        # ถ้ายังไม่สุดขอบบน/ล่าง
+        if (event.delta > 0 and current_scroll_pos[0] > 0) or (event.delta < 0 and current_scroll_pos[1] < 1):
+            self.scroll_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def on_arrow_scroll(self,event):
+        if event.keysym == 'Up':
+            self.scroll_canvas.yview_scroll(-1, "units")  
+        elif event.keysym == 'Down':
+            self.scroll_canvas.yview_scroll(1, "units")
+
+    def on_horizontal_scroll(event, canvas):
+        canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
+
     def main_container(self):
         # สร้าง Frame หลักสำหรับการแสดงข้อมูล
         self.container = ctk.CTkFrame(self.store, width=980, height=900, corner_radius=0, fg_color='white')
@@ -643,14 +658,11 @@ class main:
         def on_mouse_scroll(event):
             self.scroll_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
         
-        # ผูก Scroll Wheel เข้ากับ Canvas
-        self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll)  # สำหรับ Windows
-
-      
         
-        self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
-        self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
-        self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows         
+
+        self.scroll_canvas.bind_all("<MouseWheel>", self.on_mouse_scroll) 
+        self.scroll_canvas.bind_all("<Up>", self.on_mouse_scroll)# สำหรับ Windows
+        self.scroll_canvas.bind_all("<Down>", self.on_mouse_scroll)# สำหรับ Windows         
 
     def home_page(self):
         self.changeColor_icon(self.home_page, "home", self.home_btn)
@@ -679,19 +691,12 @@ class main:
 
         # อัปเดต scrollregion ของ Canvas
         self.main_con.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))
-
-        # ฟังก์ชันสำหรับการเลื่อน Canvas เมื่อใช้ Scroll Wheel
-        def on_mouse_scroll(event):
-            self.scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-            if event.delta > 0 or event.keysym == 'Up':     # เลื่อนขึ้น
-                self.scroll_canvas.yview_scroll(-1, "units")
-            elif event.delta < 0 or event.keysym == 'Down': # เลื่อนลง
-                self.scroll_canvas.yview_scroll(1, "units")        
-
+     
+        
         # ผูก Scroll Wheel เข้ากับ Canvas
-        self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
-        self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
-        self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows
+        self.scroll_canvas.bind_all("<MouseWheel>", self.on_mouse_scroll) 
+        self.scroll_canvas.bind_all("<Up>", self.on_mouse_scroll)# สำหรับ Windows
+        self.scroll_canvas.bind_all("<Down>", self.on_mouse_scroll)# สำหรับ Windows
 
         self.ads_frame = ctk.CTkFrame(self.main_con, fg_color='#b91c1c', width=450, height=350, corner_radius=0)
         self.ads_frame.grid(row=0, column=0, pady=0, sticky='nsew')
@@ -1098,13 +1103,8 @@ class main:
             cart_order_scroll_frame.rowconfigure(0,weight=1)
             list_orders_con.columnconfigure(0, weight=1)
             list_orders_con.rowconfigure(3,weight=1)
-            
 
-            # ฟังก์ชันเลื่อนด้วย Mouse Wheel
-            def on_mouse_scroll(event):
-                cart_order_scroll_frame._parent_canvas.yview_scroll(-1 * (event.delta // 120), "units")
-
-            cart_order_scroll_frame.bind_all("<MouseWheel>", on_mouse_scroll)
+            cart_order_scroll_frame.bind_all("<MouseWheel>", self.on_mouse_scroll)
             
             self.total_price = 0
 
@@ -1195,10 +1195,6 @@ class main:
                     blank_stock = ctk.CTkLabel(blank_stock_con, text='ตะกร้าว่างเปล่า', 
                                             fg_color='red', font=('Prompt', 25))
                     blank_stock.grid(row=0, column=0, sticky='nsew', padx=400, pady=400)
-
-        
-           
-
         except Exception as e:
             print(f"Error : {e}")
         finally:
@@ -1308,18 +1304,12 @@ class main:
             print(f"Error deleting item: {e}")
         finally:
             self.conn.close()
-
+    
     def get_thai_date(self):
-        # กำหนดชื่อเดือนภาษาไทย
-        thai_months = [
-            "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-            "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-        ]
-
         # ดึงวันที่ปัจจุบัน
         now = datetime.now()
         day = now.day  
-        month = thai_months[now.month - 1]  
+        month = self.thai_months[now.month - 1]  
         year = now.year 
 
         return f"{day}-{month}-{year}"
@@ -1714,20 +1704,12 @@ class main:
             self.scroll_canvas.create_window((0, 0), window=self.main_con, anchor='nw')
 
             # อัปเดต scrollregion ของ Canvas
-            self.main_con.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))
-
-            # ฟังก์ชันสำหรับการเลื่อน Canvas เมื่อใช้ Scroll Wheel
-            def on_mouse_scroll(event):
-                self.scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-                if event.delta > 0 or event.keysym == 'Up':     # เลื่อนขึ้น
-                    self.scroll_canvas.yview_scroll(-1, "units")
-                elif event.delta < 0 or event.keysym == 'Down': # เลื่อนลง
-                    self.scroll_canvas.yview_scroll(1, "units")        
+            self.main_con.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))   
 
             # ผูก Scroll Wheel เข้ากับ Canvas
-            self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
-            self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
-            self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows
+            self.scroll_canvas.bind_all("<MouseWheel>", self.on_mouse_scroll) 
+            self.scroll_canvas.bind_all("<Up>", self.on_mouse_scroll)# สำหรับ Windows
+            self.scroll_canvas.bind_all("<Down>", self.on_mouse_scroll)# สำหรับ Windows
             user_info_card = ctk.CTkFrame(self.main_con, fg_color='#ff3131', width=600, height=200, corner_radius=15)
             user_info_card.grid(row=0, column=0, padx=200,pady=50)
 
@@ -1844,19 +1826,11 @@ class main:
 
         # อัปเดต scrollregion ของ Canvas
         self.main_con.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))
-
-        # ฟังก์ชันสำหรับการเลื่อน Canvas เมื่อใช้ Scroll Wheel
-        def on_mouse_scroll(event):
-            self.scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-            if event.delta > 0 or event.keysym == 'Up':     # เลื่อนขึ้น
-                self.scroll_canvas.yview_scroll(-1, "units")
-            elif event.delta < 0 or event.keysym == 'Down': # เลื่อนลง
-                self.scroll_canvas.yview_scroll(1, "units")        
-
+  
         # ผูก Scroll Wheel เข้ากับ Canvas
-        self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
-        self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
-        self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows
+        self.scroll_canvas.bind_all("<MouseWheel>", self.on_mouse_scroll) 
+        self.scroll_canvas.bind_all("<Up>", self.on_mouse_scroll)# สำหรับ Windows
+        self.scroll_canvas.bind_all("<Down>", self.on_mouse_scroll)# สำหรับ Windows
 
         container_frame = ctk.CTkFrame(self.main_con, fg_color='#fbf5f5', width=700, height=900, corner_radius=15)
         container_frame.grid(row=1, column=0, padx=200, pady=20)
@@ -2360,12 +2334,9 @@ class main:
 
         self.main_frame.bind("<Configure>", update_scroll_region)
 
-        # ฟังก์ชันเลื่อนด้วย Mouse Wheel
-        def on_mouse_scroll(event):
-            self.scroll_canvas.yview_scroll(-1 * (event.delta // 120), "units")
 
         # ผูก Scroll Wheel เข้ากับ Canvas
-        self.scroll_canvas.bind("<MouseWheel>", on_mouse_scroll)
+        self.scroll_canvas.bind("<MouseWheel>", self.on_mouse_scroll)
 
         # สร้างกรอบสำหรับปุ่มใน Frame หลัก
         self.button_frame = tk.Frame(self.main_frame, bg='white')
@@ -3799,44 +3770,82 @@ class main:
 
     def revenue_page(self):
         self.clear_admin_main_con()
-        
         self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
         self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.whiteframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        self.whiteframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=1200, height=800, fg_color='#fbf5f5')  
         self.whiteframebg.place(x=50, y=50) 
 
-        # Title
-        title_label = ctk.CTkLabel(self.whiteframebg, text="รายงานรายได้", font=('Arial', 24), fg_color='transparent', text_color='black')
-        title_label.pack(pady=10)
+        now = datetime.now()
+        month_name = self.thai_months[now.month-1]  
+        current_date = self.get_thai_date()
 
-        # Dropdown (ComboBox for selecting month)
-        dropdown_label = ctk.CTkLabel(self.whiteframebg, text="เลือกเดือน:", font=('Arial', 18), text_color='black')
-        dropdown_label.pack(pady=10)
+        # คำนวณยอดขายรวม
+        saled_total = self.calculate_saled_total()
 
-        self.number_dropdown = ctk.CTkComboBox(self.whiteframebg, values=[str(i) for i in range(1, 13)], width=300, height=50)
-        self.number_dropdown.pack(pady=10)
+        heading_center = ctk.CTkLabel(self.whiteframebg, text=f"รายงานผลประกอบการประจำเดือน {month_name} ของ AllLottery", font=('Arial', 16, 'bold'))
+        heading_center.grid(row=0, column=0, columnspan=4, pady=10)
 
-        # Revenue Sections
-        daily_label = ctk.CTkLabel(self.whiteframebg, text="รายได้รายวัน:", font=('Arial', 18), text_color='black')
-        daily_label.pack(anchor='w', padx=20, pady=5)
+        heading_left = ctk.CTkLabel(self.whiteframebg, text=f"ผู้พิมพ์: admin\n DATE: {current_date}", font=('Arial', 12))
+        heading_left.grid(row=1, column=0, padx=10, pady=5, sticky="w")
 
-        self.daily_revenue_var = tk.StringVar()
-        daily_revenue_label = ctk.CTkLabel(self.whiteframebg, textvariable=self.daily_revenue_var, font=('Arial', 18), text_color='green')
-        daily_revenue_label.pack(anchor='w', padx=20, pady=5)
+        heading_right = ctk.CTkLabel(self.whiteframebg, text=f"SALED TOTAL: {saled_total}", font=('Arial', 12))
+        heading_right.grid(row=1, column=3, padx=10, pady=5, sticky="e")
 
-        monthly_label = ctk.CTkLabel(self.whiteframebg, text="รายได้รายเดือน:", font=('Arial', 18), text_color='black')
-        monthly_label.pack(anchor='w', padx=20, pady=5)
+        scroll_canvas = tk.Canvas(self.whiteframebg, bg='white', highlightthickness=0)
+        scroll_canvas.grid(row=3, column=0, columnspan=4, pady=20)
 
-        self.monthly_revenue_var = tk.StringVar()
-        monthly_revenue_label = ctk.CTkLabel(self.whiteframebg, textvariable=self.monthly_revenue_var, font=('Arial', 18), text_color='green')
-        monthly_revenue_label.pack(anchor='w', padx=20, pady=5)
+        self.v_scrollbar = ctk.CTkScrollbar(self.whiteframebg, orientation='vertical', command=self.scroll_canvas.yview)
+        self.v_scrollbar.grid(row=3, column=4, sticky="ns")
+        self.scroll_canvas.configure(yscrollcommand=self.v_scrollbar.set)
 
-        # PDF Export Button
-        pdf_button = ctk.CTkButton(self.whiteframebg, text="สร้าง PDF รายงาน", command=lambda: self.generate_pdf_report(int(self.number_dropdown.get())), corner_radius=8)
-        pdf_button.pack(pady=20)
+    
+        self.h_scrollbar = ctk.CTkScrollbar(self.whiteframebg, orientation='horizontal', command=self.scroll_canvas.xview)
+        self.h_scrollbar.grid(row=4, column=0, columnspan=4, sticky="ew")
+        
+        self.scrollable_frame = tk.Frame(self.scroll_canvas, bg='#ffffff', width=1150)
+        self.scroll_canvas.create_window((0, 0), window=self.scrollable_frame, anchor='nw')
 
-            
+        self.scrollable_frame.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))
+
+        self.scroll_canvas.bind_all("<MouseWheel>", self.on_mouse_scroll)  
+        self.scroll_canvas.bind_all("<Shift-MouseWheel>", self.on_horizontal_scroll)  
+        self.scroll_canvas.bind_all("<Up>", self.on_arrow_scroll)        
+        self.scroll_canvas.bind_all("<Down>", self.on_arrow_scroll)      
+        self.scroll_canvas.bind_all("<Left>", self.on_arrow_scroll)       
+        self.scroll_canvas.bind_all("<Right>", self.on_arrow_scroll)      
+
+        conn = sqlite3.connect('data.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM revenue_report')
+        rows = cursor.fetchall()
+
+        header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price']
+        for col, header in enumerate(header_labels):
+            header_label = ctk.CTkLabel(self.scrollable_frame, text=header, font=('Arial', 12, 'bold'), width=120)
+            header_label.grid(row=0, column=col, padx=10, pady=5)
+
+        for row_index, row in enumerate(rows, start=1):  
+            for col_index, value in enumerate(row):
+                cell_label = ctk.CTkLabel(self.scrollable_frame, text=str(value), font=('Arial', 10), width=120)
+                cell_label.grid(row=row_index, column=col_index, padx=10, pady=5)
+
+        conn.close()
+
+    def calculate_saled_total(self):
+        total = 0
+        conn = sqlite3.connect('data.db')  
+        cursor = conn.cursor()
+        cursor.execute('SELECT total_price FROM revenue_report')  
+        rows = cursor.fetchall()
+
+        for row in rows:
+            total += row[0]  
+
+        conn.close()
+        return f"฿{total:,.2f}"  
+        
+      
 
 if __name__ == "__main__":
     root = tk.Tk()
