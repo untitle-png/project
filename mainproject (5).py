@@ -3792,8 +3792,8 @@ class main:
         heading_right = ctk.CTkLabel(self.whiteframebg, text=f"SALED TOTAL: {saled_total}", font=('Arial', 12))
         heading_right.grid(row=1, column=3, padx=10, pady=5, sticky="e")
 
-        scroll_canvas = tk.Canvas(self.whiteframebg, bg='white', highlightthickness=0)
-        scroll_canvas.grid(row=3, column=0, columnspan=4, pady=20)
+        self.scroll_canvas = tk.Canvas(self.whiteframebg, bg='white', highlightthickness=0)
+        self.scroll_canvas.grid(row=3, column=0, columnspan=4, pady=20)
 
         self.v_scrollbar = ctk.CTkScrollbar(self.whiteframebg, orientation='vertical', command=self.scroll_canvas.yview)
         self.v_scrollbar.grid(row=3, column=4, sticky="ns")
@@ -3803,6 +3803,7 @@ class main:
         self.h_scrollbar = ctk.CTkScrollbar(self.whiteframebg, orientation='horizontal', command=self.scroll_canvas.xview)
         self.h_scrollbar.grid(row=4, column=0, columnspan=4, sticky="ew")
         
+
         self.scrollable_frame = tk.Frame(self.scroll_canvas, bg='#ffffff', width=1150)
         self.scroll_canvas.create_window((0, 0), window=self.scrollable_frame, anchor='nw')
 
