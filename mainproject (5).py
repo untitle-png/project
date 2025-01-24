@@ -1613,7 +1613,8 @@ class main:
             if order_code == order_code_data:
                 c.drawString(100, y_position, f"{amount}                    {num_lottery}                            {price:,.2f} บาท")
                 y_position -= 20 
-
+        c.drawString(100, y_position-20, "---------------------------------------------------------------")
+        c.drawString(100, y_position-40, f"ยอดรวม: {total_price:,.2f} บาท")
         c.save()
         print(f"ใบเสร็จถูกสร้างเรียบร้อย: {file_path}")
 
