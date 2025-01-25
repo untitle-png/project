@@ -1478,31 +1478,37 @@ class main:
 
                 # ถ้ายังไม่มี group สำหรับ order_code นี้ ให้สร้างใหม่
                 if order_code not in order_groups:
-                    order_group = ctk.CTkFrame(save_canvas, width=680, height=100, fg_color='white', corner_radius=10, border_color='#e8e8ed', border_width=2)
+                    order_group = ctk.CTkFrame(save_canvas, width=680, fg_color='white', corner_radius=10, border_color='#e8e8ed', border_width=2)
                     order_group.grid(row=len(order_groups) + 1, column=0, pady=10, sticky='nsew', padx=10, columnspan=2)
                     order_groups[order_code] = order_group  # เก็บกลุ่มนี้ไว้ตาม order_code
+                    order_group.rowconfigure(1, weight=1)  # กำหนดให้ row 0 ขยายตามความสูงของ Container
 
-                    order_box = ctk.CTkFrame(order_group, width=675, height=100, fg_color='white')
-                    order_box.grid(row=0, column=0, pady=10, sticky='nsew', padx=5, columnspan=2)
+                    order_box = ctk.CTkFrame(order_group, width=675,fg_color='white')
+                    order_box.grid(row=2, column=0, pady=10, sticky='nsew', padx=5, columnspan=2)
+                    order_box.rowconfigure(i, weight=1)  # กำหนดให้ row 0 ขยายตามความสูงของ Container
                     
                     code_order_label = ctk.CTkLabel(order_group, text=f"รหัสสั่งซื้อ: {order_code}", font=('Kanit Regular', 16), text_color='black', bg_color='white')
-                    code_order_label.grid(row=1, column=0, padx=15, pady=10, sticky='w')
+                    code_order_label.grid(row=3, column=0, padx=15, pady=10, sticky='w')
 
-                    order_group.columnconfigure(3, weight=1)
+                    order_group.columnconfigure(4, weight=1)
 
-                    column_attribute = ctk.CTkFrame(order_box, width=680, height=120, fg_color='white')
-                    column_attribute.grid(row=1, column=0, padx=2, pady=8, sticky='nsew')
+                    column_attribute = ctk.CTkFrame( order_group, width=680, height=120, fg_color='white')
+                    column_attribute.grid(row=0, column=0, padx=2, pady=8, sticky='nsew')
 
                     column_attribute.columnconfigure(3, weight=1)
 
                     column_list = ['หมายเลขลอตเตอรี่', 'จำนวน', 'ราคา', 'สถานะ/ผลรางวัล']
                     for j, col in enumerate(column_list):
                         label = ctk.CTkLabel(column_attribute, text=col, font=('Kanit Regular', 16), text_color='black', bg_color='white')
-                        label.grid(row=0, column=j, padx=60, pady=10, sticky='nsew')
-
+                        label.grid(row=0, column=j+1, padx=60, pady=10, sticky='nsew')
+                  # บันทึก index แถวปัจจุบันสำหรับรายการใน order_box
+                    order_box.current_row = 0  # เพิ่มตัวแปรสำหรับติดตามแถวปัจจุบันใน order_box
+       
                 # เลือกกลุ่มที่มีอยู่แล้วสำหรับ order_code นี้
                 order_group = order_groups[order_code]
-
+                order_box = order_group.winfo_children()[0]  # ดึง `order_box` จากกลุ่ม
+                
+               
                 # แปลงภาพจากไบนารี
                 img_lottery = None
                 if img_lot:
@@ -1512,13 +1518,17 @@ class main:
                     except Exception as e:
                         print(f"Error loading image: {e}")
 
-                line_frame = ctk.CTkFrame(order_box, width=150, height=2, fg_color='#e8e8ed')
-                line_frame.grid(row=i + 2, column=0, pady=10, sticky='nsew', padx=10, columnspan=2)
+                line_frame = ctk.CTkFrame(order_group , width=150, height=2, fg_color='#e8e8ed')
+                line_frame.grid(row=1, column=0, pady=10, sticky='nsew', padx=10, columnspan=2)
 
                 # สร้างรายการภายในกลุ่ม order_group
-                save_list_con = ctk.CTkFrame(order_box, width=800, height=100, bg_color='white', fg_color='white')
-                save_list_con.grid(row=i + 3, column=0, pady=5, sticky='nsew', padx=20, columnspan=2)
-                save_list_con.columnconfigure(3, weight=1)
+                save_list_con = ctk.CTkFrame(order_box, width=800,height=100, bg_color='white', fg_color='white')
+                save_list_con.grid(row= order_box.current_row, column=0, pady=5, sticky='nsew', padx=20, columnspan=2)
+                
+                 # ปรับค่า current_row ของ order_box สำหรับรายการถัดไป
+                order_box.current_row += 1
+                
+                
 
                 label_image = tk.Label(save_list_con, image=img_lottery, width=200, height=100)
                 label_image.image = img_lottery  # เก็บ reference เพื่อป้องกัน garbage collection
@@ -1580,7 +1590,7 @@ class main:
                         bg_color="white",
                         command=lambda order_code=order_code, save_data=save_data: self.request_receipt(order_code, save_data)
                     )
-                    request_receipt_btn.grid(row=1, column=1, padx=15, pady=10, sticky="w")
+                    request_receipt_btn.grid(row=3, column=1, padx=15, pady=10, sticky="w")
 
                 elif status == 'การชำระไม่ถูกต้อง':
                     edit_slip_btn = ctk.CTkButton(save_list_con, text='แก้ไขข้อมูล', font=('Prompt', 14), fg_color='red', command=edit_slip)
@@ -2435,8 +2445,8 @@ class main:
         self.lottery_search_entry = ctk.CTkEntry(search_frame, width=200)
         self.lottery_search_entry.grid(row=0, column=1, padx=10, pady=5)
 
-        self.search_btn = ctk.CTkButton(search_frame, text="ค้นหา", font=('Kanit Regular', 16), fg_color='black', command=self.search_lottery)
-        self.search_btn.grid(row=0, column=2, padx=10, pady=5)
+        search_btn = ctk.CTkButton(search_frame, text="ค้นหา", font=('Kanit Regular', 16), fg_color='black', command=self.search_lottery)
+        search_btn.grid(row=0, column=2, padx=10, pady=5)
 
         frame = tk.Frame(self.whiteframebg)
         frame.place(x=10, y=100, width=780, height=300)
@@ -2605,11 +2615,11 @@ class main:
         self.text_search = ctk.CTkLabel(search_frame, text="ค้นหาผู้ใช้", font=('Kanit Regular', 16))
         self.text_search.grid(row=0, column=0, padx=10, pady=5)
 
-        self.search_entry = ctk.CTkEntry(search_frame, width=200)
-        self.search_entry.grid(row=0, column=1, padx=10, pady=5)
+        self.search_user_entry = ctk.CTkEntry(search_frame, width=200)
+        self.search_user_entry.grid(row=0, column=1, padx=10, pady=5)
 
-        self.search_btn = ctk.CTkButton(search_frame, text="ค้นหา", font=('Kanit Regular', 16), fg_color='black', bg_color='#cfcfcf',command=self.search_user)
-        self.search_btn.grid(row=0, column=2, padx=10, pady=5)
+        search_btn = ctk.CTkButton(search_frame, text="ค้นหา", font=('Kanit Regular', 16), fg_color='black', bg_color='#cfcfcf',command=self.search_user)
+        search_btn.grid(row=0, column=2, padx=10, pady=5)
 
         frame = tk.Frame(self.whiteframebg)
         frame.place(x=10, y=100, width=780, height=300)
@@ -2670,7 +2680,7 @@ class main:
 
     def search_user(self):
         # รับข้อมูลที่ผู้ใช้ป้อนในช่องค้นหา
-        search_term = self.search_entry.get()
+        search_term = self.search_user_entry.get()
 
         # เชื่อมต่อกับฐานข้อมูล
         self.connect_to_db()
@@ -2987,11 +2997,11 @@ class main:
         self.text_search = ctk.CTkLabel(search_frame, text="ค้นหาออเดอร์", font=('Kanit Regular', 16))
         self.text_search.grid(row=0, column=0, padx=10, pady=5)
 
-        self.search_entry = ctk.CTkEntry(search_frame, width=200)
-        self.search_entry.grid(row=0, column=1, padx=10, pady=5)
+        self.search_order_entry = ctk.CTkEntry(search_frame, width=200)
+        self.search_order_entry.grid(row=0, column=1, padx=10, pady=5)
 
-        self.search_btn = ctk.CTkButton(search_frame, text="ค้นหา", font=('Kanit Regular', 16), fg_color='black', bg_color='#cfcfcf', command=self.search_order)
-        self.search_btn.grid(row=0, column=2, padx=10, pady=5)
+        search_btn = ctk.CTkButton(search_frame, text="ค้นหา", font=('Kanit Regular', 16), fg_color='black', bg_color='#cfcfcf', command=self.search_order)
+        search_btn.grid(row=0, column=2, padx=10, pady=5)
 
         frame = tk.Frame(self.whiteframebg)
         frame.place(x=10, y=100, width=780, height=300)
@@ -3040,7 +3050,7 @@ class main:
     
     def search_order(self):
         self.connect_to_db()
-        search_value = self.search_entry.get()
+        search_value = self.search_order_entry.get()
         for row in self.order_tree.get_children():
             self.order_tree.delete(row)
 
@@ -3525,8 +3535,8 @@ class main:
         text_search = ctk.CTkLabel(search_frame, text="ค้นหารายการ", font=('Kanit Regular', 16))
         text_search.grid(row=0, column=0, padx=10, pady=5)
 
-        search_entry = ctk.CTkEntry(search_frame, width=200)
-        search_entry.grid(row=0, column=1, padx=10, pady=5)
+        self.search_save_entry = ctk.CTkEntry(search_frame, width=200)
+        self.search_save_entry.grid(row=0, column=1, padx=10, pady=5)
 
         search_btn = ctk.CTkButton(search_frame, text="ค้นหา", font=('Kanit Regular', 16), fg_color='black', bg_color='#cfcfcf', command=self.search_save)
         search_btn.grid(row=0, column=2, padx=10, pady=5)
@@ -3582,7 +3592,7 @@ class main:
         
     def search_save(self):
         self.connect_to_db()
-        search_value = self.search_entry.get()
+        search_value = self.search_save_entry.get()
         for row in self.save_tree.get_children():
             self.save_tree.delete(row)
 
