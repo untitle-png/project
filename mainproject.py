@@ -928,14 +928,25 @@ class main:
                         typelot_label.place(x=65, y=5)
 
                         # Combobox สำหรับจำนวน
-                        amount_combo = ctk.CTkComboBox(
-                            frame_item,
-                            values=[str(x) for x in range(1, amount_data + 1)],
-                            width=50, height=23,
-                            corner_radius=5, bg_color='#2b2b2b', fg_color='white',
-                            text_color='#2b2b2b'
-                        )
-                        amount_combo.place(x=12, y=148)
+                        if typelot_data == 'หวยเดี่ยว':
+                            amount_combo = ctk.CTkComboBox(
+                                frame_item,
+                                values=[str(x) for x in range(1, amount_data + 1)],
+                                width=50, height=23,
+                                corner_radius=5, bg_color='#2b2b2b', fg_color='white',
+                                text_color='#2b2b2b'
+                            )
+                            amount_combo.place(x=12, y=148)
+                        
+                        elif typelot_data == 'หวยชุด':    
+                            amount_combo = ctk.CTkComboBox(
+                                frame_item,
+                                values=[(str(amount_data))],
+                                width=50, height=23,
+                                corner_radius=5, bg_color='#2b2b2b', fg_color='white',
+                                text_color='#2b2b2b'
+                            )
+                            amount_combo.place(x=12, y=148)
                         
                         # ปุ่มหยิบใส่ตะกร้า
                         cartPick_image = Image.open(r'D:\python_finalproject\img\icon\white\26.png')
