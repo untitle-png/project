@@ -1554,23 +1554,6 @@ class main:
 
                 label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
                 label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
-
-                conn = sqlite3.connect('data.db')
-                c = conn.cursor()
-
-                # ดึงข้อมูลจากฐานข้อมูล
-                c.execute('SELECT num_lottery_save, img_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date FROM save WHERE order_code = ?', (order_code,))
-                data = c.fetchall()
-
-                # ตรวจสอบว่ามีข้อมูลหรือไม่
-                if data:
-                    price = data[0][3]  # ค่าราคาคือ column ที่ 4 (index 3)
-                    total_price += price  # คำนวณราคาทั้งหมดสำหรับการสั่งซื้อรายการนี้
-
-                    # แสดงยอดรวม
-                    total_price_label = ctk.CTkLabel(order_group, text=f"ยอดรวม: {total_price}", font=('Kanit Regular', 16), text_color='black', bg_color='white')
-                    total_price_label.grid(row=3, column=0, padx=300, pady=10, sticky='w')
-                conn.close()  
                
                 if status == 'ชำระเงินแล้ว': 
                     label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
@@ -3593,7 +3576,7 @@ class main:
 
         delete_btn = ctk.CTkButton(whiteframebg, text="ลบข้อมูล", font=('Kanit Regular', 16), fg_color='black', command=self.delete_save)
         delete_btn.place(x=180, y=420)
-        
+
         check_btn = ctk.CTkButton(whiteframebg, text="ตรวจลอตเตอรี่", font=('Kanit Regular', 16), fg_color='black', command=self.auto_check_prize)
         check_btn.place(x=380, y=420)
 
