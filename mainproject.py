@@ -9,11 +9,24 @@ from tkinter import messagebox
 from datetime import datetime
 import tkinter.messagebox
 import io
+import uuid
 from tkinter import filedialog
 import random
 import api_payment
+import base64
 import pandas as pd
-import uuid
+import time
+import threading
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.colors import HexColor
+from tkinter import filedialog
+import os
 
 class main:
     def __init__(self, root):
@@ -28,6 +41,23 @@ class main:
         self.login_store()
         self.image_refs = []
         
+        self.save_data = []  # กำหนดข้อมูลสำหรับ save_data
+        self.order_code = None  # กำหนดตัวแปรสำหรับ order_code
+        
+        #สร้างตัวแปรเก็บเดือนภาษาไทยเอาไว้ใช้แสดงชื่อเดือน & ธนาคาร
+        self.thai_months = [
+            "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+            "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+        ]
+        self.bank_name_value = ["ธนาคารกรุงเทพ", "ธนาคารกสิกรไทย", "ธนาคารกรุงไทย", "ธนาคารทหารไทย", "ธนาคารไทยพาณิชย์", 
+            "ธนาคารกรุงศรีอยุธยา", "ธนาคารเกียรตินาคิน", "ธนาคารซีไอเอ็มบีไทย", "ธนาคารทิสโก้", 
+            "ธนาคารธนชาต", "ธนาคารยูโอบี", "ธนาคารสแตนดาร์ดชาร์เตอร์ด (ไทย)", 
+            "ธนาคารไทยเครดิตเพื่อรายย่อย", "ธนาคารแลนด์ แอนด์ เฮาส์", 
+            "ธนาคารไอซีบีซี (ไทย)", "ธนาคารพัฒนาวิสาหกิจขนาดกลางและขนาดย่อมแห่งประเทศไทย", 
+            "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร", "ธนาคารเพื่อการส่งออกและนำเข้าแห่งประเทศไทย", 
+            "ธนาคารออมสิน", "ธนาคารอาคารสงเคราะห์", "ธนาคารอิสลามแห่งประเทศไทย", 
+            "ธนาคารแห่งประเทศจีน", "ธนาคารซูมิโตโม มิตซุย ทรัสต์ (ไทย)", 
+            "ธนาคารฮ่องกงและเซี้ยงไฮ้แบงกิ้งคอร์ปอเรชั่น จำกัด"]
 
     def create_data(self):
         try:
@@ -50,7 +80,8 @@ class main:
                 num_id TEXT NOT NULL,
                 price INTEGER NOT NULL,
                 amount INTEGER NOT NULL,
-                img_lottery BLOB NOT NULL)''')
+                img_lottery BLOB NOT NULL,
+                lottery_date DATE NOT NULL)''')
             self.conn.commit()
             
             self.c.execute('''CREATE TABLE IF NOT EXISTS orders(
@@ -61,7 +92,9 @@ class main:
                 amount_orders INTEGER NOT NULL,
                 price_orders INTEGER NOT NULL,
                 Cash INTEGER NOT NULL,
-                status TEXT NOT NULL
+                status TEXT NOT NULL,
+                type_lottery varchar(30) NOT NULL,
+                lottery_date DATE NOT NULL
             )''')
             self.conn.commit()
           
@@ -79,19 +112,42 @@ class main:
                 username_save TEXT NOT NULL,
                 num_lottery_save INTEGER NOT NULL,
                 img_lottery_save BLOB NOT NULL,
-                slip BLOB NOT NULL,
                 amount_save INTEGER NOT NULL,
                 price_save INTEGER NOT NULL,
-                status_save TEXT NOT NULL 
+                status_save TEXT NOT NULL,
+                slip_order  BLOB NOT NULL,
+                order_code TEXT NOT NULL,
+                win_prize TEXT NOT NULL,
+                lottery_date DATE NOT NULL
                 )''')
             self.conn.commit()
+            
+            self.c.execute('''CREATE TABLE IF NOT EXISTS  code_order(
+                id INTEGER PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                code_key TEXT NOT NULL,
+                slip_order  BLOB NOT NULL,
+                total_price INTEGER NOT NULL    
+                    )''')
+            self.conn.commit()
 
+            self.c.execute('''CREATE TABLE IF NOT EXISTS revenue_report (
+                id INTEGER PRIMARY KEY,
+                order_code TEXT NOT NULL,           
+                lottery_id TEXT NOT NULL,
+                price INTEGER NOT NULL,
+                amount INTEGER NOT NULL,
+                lottery_date DATE NOT NULL,
+                total_price INTEGER NOT NULL           
+            )''')
+            self.conn.commit()
 
         except Exception as e:
-            print(f"เกิดข้อผิดพลาด: {e}")
+            print(f"เกิดข้อผิดพลาด11: {e}")
         finally:
             self.conn.close()
-            
+
+
     def create_admin(self):
         self.conn = sqlite3.connect('data.db')
         self.c = self.conn.cursor()
@@ -115,7 +171,7 @@ class main:
             self.conn.commit()
           
         except Exception as e:
-            print(f'เกิดข้อผิดพลาด {e}')
+            print(f'เกิดข้อผิดพลาด2 {e}')
         finally:
             self.conn.close()
 
@@ -161,7 +217,6 @@ class main:
                                            hover_color='white'
                                       ,command=self.about)
         self.about_button.place(x=950, y=475)
-
 
     def about(self):
         self.about_window = tk.Toplevel(self.root)
@@ -258,11 +313,7 @@ class main:
         self.dob_month = ttk.Combobox(
             master=self.signup_ui,
             font=('Prompt',8),
-            values=[
-                
-                "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-                "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-            ],
+            values=self.thai_months,
             width=18,
             height=8,justify='center'
         )
@@ -278,17 +329,7 @@ class main:
         self.et_email.place(x =260,y=368)
         self.et_banknumber = tk.Entry(self.signup_ui, width=14, font=('Prompt', 12), fg='black', bg='white', border=0)
         self.et_banknumber.place(x=260, y=428,width=130)
-        self.et_bankname = ttk.Combobox(self.signup_ui, values=[
-            "ธนาคารกรุงเทพ", "ธนาคารกสิกรไทย", "ธนาคารกรุงไทย", "ธนาคารทหารไทย", "ธนาคารไทยพาณิชย์", 
-            "ธนาคารกรุงศรีอยุธยา", "ธนาคารเกียรตินาคิน", "ธนาคารซีไอเอ็มบีไทย", "ธนาคารทิสโก้", 
-            "ธนาคารธนชาต", "ธนาคารยูโอบี", "ธนาคารสแตนดาร์ดชาร์เตอร์ด (ไทย)", 
-            "ธนาคารไทยเครดิตเพื่อรายย่อย", "ธนาคารแลนด์ แอนด์ เฮาส์", 
-            "ธนาคารไอซีบีซี (ไทย)", "ธนาคารพัฒนาวิสาหกิจขนาดกลางและขนาดย่อมแห่งประเทศไทย", 
-            "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร", "ธนาคารเพื่อการส่งออกและนำเข้าแห่งประเทศไทย", 
-            "ธนาคารออมสิน", "ธนาคารอาคารสงเคราะห์", "ธนาคารอิสลามแห่งประเทศไทย", 
-            "ธนาคารแห่งประเทศจีน", "ธนาคารซูมิโตโม มิตซุย ทรัสต์ (ไทย)", 
-            "ธนาคารฮ่องกงและเซี้ยงไฮ้แบงกิ้งคอร์ปอเรชั่น จำกัด"
-        ], width=20, font=('Prompt', 8),justify='center')
+        self.et_bankname = ttk.Combobox(self.signup_ui, values=self.bank_name_value, width=20, font=('Prompt', 8),justify='center')
         self.et_bankname.place(x=408, y=428,width=98,height=25)
 
         self.et_adress = tk.Text(self.signup_ui,width=22,heigh=8,font=('Prompt',8), fg='black', bg='white',border=0)
@@ -334,8 +375,8 @@ class main:
             tkinter.messagebox.showerror("Error", "กรุณากรอกข้อมูลให้ครบ")
             return
 
-        if not password.isdigit() or len(password) <=6:
-            tkinter.messagebox.showerror("Error", "กรุณากรอกพาสเวิสให้มากกว่า 6 หลัก")
+        if not password.isdigit() or len(password) <=5:
+            tkinter.messagebox.showerror("Error", "กรุณากรอกพาสเวิสให้มากกว่า 5 หลัก")
             return
         
         if password != password_confirm:
@@ -406,9 +447,8 @@ class main:
             widget.destroy()
             
     def clear_main_con(self):
-        if self.container:
-            for widget in  self.container.winfo_children():
-                widget.destroy()
+        for widget in self.main_con.winfo_children():
+            widget.destroy()        
         
 
 
@@ -566,11 +606,23 @@ class main:
             img = Image.open(icon_settings[add_icon])
             img_icon = ctk.CTkImage(img, size=(80, 40))
             icon_config.configure(image=img_icon, text_color='#2b2b2b')   
-                 
-    def main_container(self):
-        self.header_frame = ctk.CTkFrame(self.container, fg_color='#2b2b2b', width=1920, height=50, corner_radius=0)
-        self.header_frame.grid(row=0, column=0, sticky='nsew')
+        
+    def on_mouse_scroll(self, event):
+        current_scroll_pos = self.scroll_canvas.yview()
+        # ถ้ายังไม่สุดขอบบน/ล่าง
+        if (event.delta > 0 and current_scroll_pos[0] > 0) or (event.delta < 0 and current_scroll_pos[1] < 1):
+            self.scroll_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
+    def on_arrow_scroll(self,event):
+        if event.keysym == 'Up':
+            self.scroll_canvas.yview_scroll(-1, "units")  
+        elif event.keysym == 'Down':
+            self.scroll_canvas.yview_scroll(1, "units")
+
+    def on_horizontal_scroll(event, canvas):
+        canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def main_container(self):
         # สร้าง Frame หลักสำหรับการแสดงข้อมูล
         self.container = ctk.CTkFrame(self.store, width=980, height=900, corner_radius=0, fg_color='white')
         self.container.place(x=100, y=0 )
@@ -578,6 +630,7 @@ class main:
         # สร้าง Canvas
         self.scroll_canvas = tk.Canvas(self.container, bg='white',highlightthickness=0,width=980,height=900)
         self.scroll_canvas.grid(row = 1 ,column =0,sticky = 'nsew')
+
 
         # สร้าง Scrollbar
         self.scrollbar1 = ctk.CTkScrollbar(self.container, orientation='vertical',hover='white'
@@ -607,23 +660,20 @@ class main:
         def on_mouse_scroll(event):
             self.scroll_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
         
-        # ผูก Scroll Wheel เข้ากับ Canvas
-        self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll)  # สำหรับ Windows
-
-      
         
-        self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
-        self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
-        self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows         
+
+        self.scroll_canvas.bind_all("<MouseWheel>", self.on_mouse_scroll) 
+        self.scroll_canvas.bind_all("<Up>", self.on_mouse_scroll)# สำหรับ Windows
+        self.scroll_canvas.bind_all("<Down>", self.on_mouse_scroll)# สำหรับ Windows         
 
     def home_page(self):
         self.changeColor_icon(self.home_page, "home", self.home_btn)
-        self.container = ctk.CTkFrame(self.store, width=1920, height=600, corner_radius=0, fg_color='white')
+        self.container = ctk.CTkFrame(self.store, width=1920, height=615, corner_radius=0, fg_color='white')
         self.container.place(x=100, y=0,relx= 0,rely = 0, relwidth =1 ,relheight = 1 )
 
         # สร้าง Canvas
         self.scroll_canvas = tk.Canvas(self.container, bg='white',highlightthickness=0)
-        self.scroll_canvas.place(x=0, y=0, width=1920, height=600)
+        self.scroll_canvas.place(x=0, y=0, width=1920,height=610)
 
         # สร้าง Scrollbar
         self.scrollbar1 = ctk.CTkScrollbar(self.container, orientation='vertical',hover='white'
@@ -643,19 +693,12 @@ class main:
 
         # อัปเดต scrollregion ของ Canvas
         self.main_con.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))
-
-        # ฟังก์ชันสำหรับการเลื่อน Canvas เมื่อใช้ Scroll Wheel
-        def on_mouse_scroll(event):
-            self.scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-            if event.delta > 0 or event.keysym == 'Up':     # เลื่อนขึ้น
-                self.scroll_canvas.yview_scroll(-1, "units")
-            elif event.delta < 0 or event.keysym == 'Down': # เลื่อนลง
-                self.scroll_canvas.yview_scroll(1, "units")        
-
+     
+        
         # ผูก Scroll Wheel เข้ากับ Canvas
-        self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
-        self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
-        self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows
+        self.scroll_canvas.bind_all("<MouseWheel>", self.on_mouse_scroll) 
+        self.scroll_canvas.bind_all("<Up>", self.on_mouse_scroll)# สำหรับ Windows
+        self.scroll_canvas.bind_all("<Down>", self.on_mouse_scroll)# สำหรับ Windows
 
         self.ads_frame = ctk.CTkFrame(self.main_con, fg_color='#b91c1c', width=450, height=350, corner_radius=0)
         self.ads_frame.grid(row=0, column=0, pady=0, sticky='nsew')
@@ -697,15 +740,19 @@ class main:
                             (search,))
                 show_search = self.c.fetchall()
 
-                if show_search:
+                num_id = show_search[2]
+                last_three = num_id%1000
+                last_two = num_id%10000 
+
+                if num_id:
                     if self.oddLot:
-                        self.oddlottery_data = show_search
+                        self.oddlottery_data = num_id
 
                     elif self.pairLot:
-                        self.pairlottery_data = show_search
+                        self.pairlottery_data = num_id
 
                     elif self.allLot:
-                        self.alllottery_data = show_search
+                        self.alllottery_data = num_id
 
                 else:
                     self.clear_frameItem_con()
@@ -841,9 +888,8 @@ class main:
         self.store_loterry(self.oddlottery_data)
         
     def store_loterry(self, typelot):
-        # แสดงข้อมูลภาพและ Combobox ในหน้า
         index = 0  # แถว table
-        
+
         for i in range(len(typelot)):
             for j in range(4):
                 if index < len(typelot):
@@ -866,13 +912,13 @@ class main:
                         label_image.image = img_lot
                         label_image.place(x=10, y=35)
 
-                        # แสดงหมายเลขลอตเตอรี่ (กล่องข้อความทับบนมุมขวาบนของรูปภาพ)
+                        # แสดงหมายเลขลอตเตอรี่
                         lottery_number_label = tk.Label(
                             frame_item, text=f"{num_lottery}", font=('Prompt', 10, 'bold'),
-                            fg='black', bg='white',  
-                            padx=5, pady=2  
+                            fg='black', bg='white',
+                            padx=5, pady=2
                         )
-                        lottery_number_label.place(x=115, y=40)  
+                        lottery_number_label.place(x=115, y=40)
 
                         # ประเภทลอตเตอรี่
                         typelot_label = tk.Label(
@@ -881,57 +927,84 @@ class main:
                         typelot_label.place(x=65, y=5)
 
                         # Combobox สำหรับจำนวน
-                        amount_combo = ctk.CTkComboBox(
+                        amount_selected = ctk.CTkComboBox(
                             frame_item,
                             values=[str(x) for x in range(1, amount_data + 1)],
                             width=50, height=23,
                             corner_radius=5, bg_color='#2b2b2b', fg_color='white',
                             text_color='#2b2b2b'
                         )
-                        amount_combo.place(x=12, y=148)
-
+                        amount_selected.place(x=12, y=148)
+                        
                         # ปุ่มหยิบใส่ตะกร้า
                         cartPick_image = Image.open(r'D:\python_finalproject\img\icon\white\26.png')
                         cartPick_img_icon = ctk.CTkImage(cartPick_image, size=(30, 20))
-
-                        pick_btn = ctk.CTkButton(frame_item, text='หยิบใส่ตระกร้า',
-                                                image=cartPick_img_icon,
-                                                compound=tk.RIGHT,
-                                                anchor='w',
-                                                font=('Prompt', 12),
-                                                width=45, height=16,
-                                                border_width=0,
-                                                bg_color='#2b2b2b',
-                                                fg_color='#2b2b2b',
-                                                hover_color='black',
-                                                command=lambda n=num_lottery,i= img_data, a=amount_combo, p=price_data: self.add_cart(n, i,a.get(), p))
+                        
+                        pick_btn = ctk.CTkButton(
+                            frame_item,
+                            text='หยิบใส่ตระกร้า',
+                            image=cartPick_img_icon,
+                            compound=tk.RIGHT,
+                            anchor='w',
+                            font=('Prompt', 12),
+                            width=45, height=16,
+                            border_width=0,
+                            bg_color='#2b2b2b',
+                            fg_color='#2b2b2b',
+                            hover_color='black',
+                            command=lambda n=num_lottery, i=img_data, p=price_data, t=typelot_data: self.add_cart(
+                                n, i, amount_selected.get(), p, t  # ดึงค่าจาก Combobox ตอนกดปุ่ม
+                            )
+                        )
                         pick_btn.place(x=70, y=145)
-
+                        
                     except Exception as e:
                         print(f"Error processing item: {e}")
                         continue
 
                 index += 1
-                
+
         self.conn.close()
 
-
-    def add_cart(self, num_lottery, img_data, amount_selected, price_data):
-        # เชื่อมต่อกับฐานข้อมูล
-        self.conn = sqlite3.connect('data.db')
-        self.c = self.conn.cursor()
-
+    def add_cart(self, num_lottery, img_data, amount_selected, price_data, typelot_data):
         try:
             amount = int(amount_selected)
-            
-            username = self.username  
 
+            # เชื่อมต่อกับฐานข้อมูล
+            self.conn = sqlite3.connect('data.db')
+            self.c = self.conn.cursor()
+
+            # ตรวจสอบจำนวนในสต็อก
+            self.c.execute('SELECT amount FROM lottery WHERE num_id = ?', (num_lottery,))
+            lottery = self.c.fetchone()
+            if not lottery:
+                tkinter.messagebox.showerror("Error", "ไม่พบข้อมูลลอตเตอรี่ในระบบ!")
+                return
+
+            available_amount = lottery[0]
+
+            if available_amount < amount:
+                tkinter.messagebox.showwarning("Warning", "สต็อกไม่เพียงพอ!")
+                return
+
+            # ตรวจสอบคำสั่งซื้อในตะกร้า
             self.c.execute('SELECT * FROM orders WHERE orders_lottery_num = ? AND User_orders = ?', 
-                        (num_lottery, username))
-            current_amount = self.c.fetchone()
+                            (num_lottery, self.username))
+            order = self.c.fetchone()
 
-            if current_amount:
-                new_amount = current_amount[3] +amount
+            if order:
+                # อัปเดตจำนวนในตะกร้า
+                current_amount = order[4]
+                print(f"Current amount in cart: {current_amount}")
+                new_amount = current_amount + amount
+
+                if new_amount > available_amount:
+                    tkinter.messagebox.showwarning("Warning", "จำนวนในตะกร้าเกินกว่าสต็อกที่มีอยู่!")
+                    return
+
+                price_order = price_data * new_amount
+                print(f"Updating cart with new amount: {new_amount}, new price: {price_order}")
+
                 self.c.execute('''
                     UPDATE orders 
                     SET img_lottery_orders = ?, 
@@ -940,23 +1013,39 @@ class main:
                         cash = ?, 
                         status = ?
                     WHERE orders_lottery_num = ? AND User_orders = ?
-                ''', (img_data, new_amount, (int(price_data) *int( new_amount,)) ,0, 'ยังไม่ชำระ', num_lottery, username))
+                ''', (img_data, new_amount, price_order, 0, 'ยังไม่ชำระ', num_lottery, self.username))
             else:
-                # ถ้าไม่พบรายการ ให้เพิ่มรายการใหม่
-                self.c.execute('''
-                    INSERT INTO orders (User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (username, num_lottery, img_data, amount, int(price_data) * int(amount), 0, 'ยังไม่ชำระ'))
+                # เพิ่มคำสั่งซื้อใหม่
+                self.c.execute('SELECT lottery_date FROM lottery WHERE num_id = ?', (num_lottery,))
+                lottery_date = self.c.fetchone()[0] if lottery else None
 
-            # ยืนยันการเปลี่ยนแปลงในฐานข้อมูล
+                print(f"Adding new item to cart: amount={amount}, price={price_data * amount}")
+                self.c.execute('''
+                    INSERT INTO orders (User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status, type_lottery, lottery_date) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (self.username, num_lottery, img_data, amount, price_data, 0, 'ยังไม่ชำระ', typelot_data, lottery_date))
+
+            # ลดจำนวนในสต็อก
+            remaining_amount = available_amount - amount
+
+            self.c.execute('''
+                UPDATE lottery
+                SET amount = ? 
+                WHERE num_id = ?
+            ''', (remaining_amount, num_lottery))
+            if remaining_amount == 0:
+                self.c.execute('DELETE FROM lottery WHERE num_id = ?', (num_lottery,))
             self.conn.commit()
+
+            # รีเฟรชหน้า
+            self.home_page()
             tkinter.messagebox.showinfo("Success", "เพิ่มล็อตเตอรี่ลงในตะกร้าเรียบร้อยแล้ว!")
 
         except Exception as e:
             print(f"Error adding to cart: {e}")
         finally:
             self.conn.close()
-    
+
     def cart_page(self):
         global cart_order_con
         self.clear_main_con()
@@ -972,7 +1061,7 @@ class main:
 
             # ดึงข้อมูลการสั่งซื้อจากฐานข้อมูล
             try:
-                self.c.execute('SELECT User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status FROM orders WHERE User_orders = ?', (self.username,))
+                self.c.execute('SELECT User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status,type_lottery, lottery_date FROM orders WHERE User_orders = ?', (self.username,))
                 orders_data = self.c.fetchall()
             except Exception as e:
                 print(f"Error fetching orders: {e}")
@@ -1008,29 +1097,28 @@ class main:
             list_orders_con.grid(row=1, column=0, pady=10, padx=245, sticky='nsew')  
 
             # ใช้ CTkScrollableFrame สำหรับการเลื่อน
-            cart_order_scroll_frame = ctk.CTkScrollableFrame( list_orders_con, width=500, fg_color='#ffffff')
-            cart_order_scroll_frame.grid(row=0, column=0,padx =20,pady=20, sticky='nsew')
+            cart_order_scroll_frame = ctk.CTkScrollableFrame( list_orders_con, width=480, fg_color='#ffffff')
+            cart_order_scroll_frame.grid(row=0, column=0,padx =20,pady=10, sticky='nsew',columnspan = 2)
 
             # ตั้งค่า columnconfigure
             cart_order_scroll_frame.columnconfigure(0, weight=1)
-            list_orders_con.columnconfigure(0, weight=2)
+            cart_order_scroll_frame.rowconfigure(0,weight=1)
+            list_orders_con.columnconfigure(0, weight=1)
+            list_orders_con.rowconfigure(3,weight=1)
 
-            # ฟังก์ชันเลื่อนด้วย Mouse Wheel
-            def on_mouse_scroll(event):
-                cart_order_scroll_frame._parent_canvas.yview_scroll(-1 * (event.delta // 120), "units")
-
-            cart_order_scroll_frame.bind_all("<MouseWheel>", on_mouse_scroll)
+            cart_order_scroll_frame.bind_all("<MouseWheel>", self.on_mouse_scroll)
             
-            total_price = 0
+            self.total_price = 0
 
             # แสดงรายการสินค้าในตะกร้า
             for i, order in enumerate(orders_data):
-                username_data, num_lottery, img_lot, amount, price, cash, status = order
+                username_data, num_lottery, img_lot, amount, price, cash, status, type_lot, lottery_date = order
+                self.total_price += float(price*amount)
 
-                total_price += float(price)
+
                 # โหลดและแสดงภาพลอตเตอรี่
                 try:
-                    img1 = Image.open(io.BytesIO(img_lot)).resize((350, 150))
+                    img1 = Image.open(io.BytesIO(img_lot)).resize((200, 50))
                     self.img_lottery = ImageTk.PhotoImage(img1)
                 except Exception as e:
                     print(f"Error loading image: {e}")
@@ -1075,7 +1163,7 @@ class main:
                                             text_color='#cfcfcf')
                 amount_label.grid(row=0, column=2, padx=2, sticky='w')
                 
-                price_label = ctk.CTkLabel(orders_list_con, text=f'{price} บาท',
+                price_label = ctk.CTkLabel(orders_list_con, text=f'{price*amount:,.2f} บาท',
                                             font=('Prompt', 16),
                                             text_color='black')
                 price_label.grid(row=0, column=3, padx=5, sticky='e')
@@ -1085,7 +1173,7 @@ class main:
                                                 text_color='black', anchor='w')
                 total_price_text.grid(row=1, column=0, sticky='w', padx=10, pady=10)
 
-                total_price_label = ctk.CTkLabel( list_orders_con, text=f'{total_price:,.2f} บาท',
+                total_price_label = ctk.CTkLabel( list_orders_con, text=f'{self.total_price:,.2f} บาท',
                                                 font=('Prompt', 16),
                                                 text_color='black', anchor='e')
                 total_price_label.grid(row=1, column=1, sticky='e', padx=10, pady=10)
@@ -1108,17 +1196,11 @@ class main:
                     blank_stock_con.place(x=0, y=10)
                     blank_stock = ctk.CTkLabel(blank_stock_con, text='ตะกร้าว่างเปล่า', 
                                             fg_color='red', font=('Prompt', 25))
-                    blank_stock.grid(row=0, column=0, sticky='nsew', padx=200, pady=200)
-
-        
-           
-
+                    blank_stock.grid(row=0, column=0, sticky='nsew', padx=400, pady=400)
         except Exception as e:
             print(f"Error : {e}")
         finally:
             self.conn.close()
-
- 
             
     def payment_ui(self):
             self.conn = sqlite3.connect('data.db')
@@ -1134,7 +1216,7 @@ class main:
             if access_token:
                 # ข้อมูลสำหรับการสร้าง QR Code
                 biller_id = "838570584253024"  # รหัส Biller
-                price = d[5]  # จำนวนเงิน ควรตรวจสอบดัชนีของ d ก่อนใช้
+                price = self.total_price   # จำนวนเงิน ควรตรวจสอบดัชนีของ d ก่อนใช้
                 ref1 = "TESTREF1"  # หมายเลขอ้างอิง
                 ref2 = "TESTREF2"  # หมายเลขอ้างอิง
 
@@ -1179,6 +1261,7 @@ class main:
                         QR_LABEL.image = OR_IMG  # เก็บอ้างอิงเพื่อไม่ให้ภาพถูกเก็บขยะ
                         QR_LABEL.grid(row = 0,column=0,sticky= 'nsew',pady = 5,padx = 100 )
                         
+                        global file_btn
                         file_btn = ctk.CTkButton(self.payment_page,text='แนบสลิป', font=('Kanit Regular', 16),
                                              height=40,width=20,
                                              command=select_slip)
@@ -1196,27 +1279,66 @@ class main:
 
     def delete_item_from_cart(self, order):
         try:
-            # ลบข้อมูลสินค้าออกจากฐานข้อมูล
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
-            self.c.execute(
-                'DELETE FROM orders WHERE User_orders = ? AND orders_lottery_num = ?',
-                (self.username, order[1])
-            )
+
+            # ข้อมูลจากคำสั่งซื้อ
+            lottery_date = order[8]  
+            num_lottery = order[1]  
+            type_lottery = order[7]  
+            price = order[4] 
+            amount = order[3] 
+            img_lottery = order[2]  
+
+            # ตรวจสอบว่าลอตเตอรี่มีอยู่ในสต็อกหรือไม่
+            self.c.execute('SELECT amount FROM lottery WHERE num_id = ?', (num_lottery,))
+            existing_lottery = self.c.fetchone()
+
+            if existing_lottery:
+                # อัปเดตจำนวนในสต็อก
+                new_amount = existing_lottery[0] + amount
+                self.c.execute('''
+                    UPDATE lottery
+                    SET amount = ?
+                    WHERE num_id = ?
+                ''', (new_amount, num_lottery))
+            else:
+                # เพิ่มลอตเตอรี่ใหม่ในสต็อก
+                self.c.execute('''
+                    INSERT INTO lottery (num_id, type_lottery, price, amount, img_lottery, lottery_date)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (num_lottery, type_lottery, price, amount, img_lottery, lottery_date))
+            
+            # ลบรายการออกจากตะกร้า
+            self.c.execute('''
+                DELETE FROM orders
+                WHERE User_orders = ? AND orders_lottery_num = ?
+            ''', (self.username, num_lottery))
+            
+            # บันทึกการเปลี่ยนแปลง
             self.conn.commit()
 
-            # ดึงข้อมูลรายการสินค้าหลังจากลบ
-            self.c.execute('SELECT User_orders, orders_lottery_num FROM orders WHERE User_orders = ?', (self.username,))
-            remaining_orders = self.c.fetchall()
-
-            
-            # อัปเดต UI โดยรีเฟรชตะกร้า
+            # รีเฟรชหน้าแสดงตะกร้า
             self.cart_page()
+
+            # แจ้งเตือนผู้ใช้
+            tkinter.messagebox.showinfo("Success", "ลบรายการออกจากตะกร้าสำเร็จแล้ว!")
+
         except Exception as e:
             print(f"Error deleting item: {e}")
+            tkinter.messagebox.showerror("Error", f"ไม่สามารถลบรายการได้: {e}")
         finally:
             self.conn.close()
 
+    
+    def get_thai_date(self):
+        # ดึงวันที่ปัจจุบัน
+        now = datetime.now()
+        day = now.day  
+        self.month = self.thai_months[now.month - 1]  
+        year = now.year 
+
+        return f"{day}-{self.month}-{year}"
 
     def clear_stock(self):
         try:
@@ -1226,24 +1348,25 @@ class main:
 
             # ดึงข้อมูลจากตาราง orders
             self.c.execute('SELECT * FROM orders WHERE User_orders = ?', (self.username,))
-            d = self.c.fetchone()
-
+            d = self.c.fetchall()
             if not d:
                 print("No orders found.")
                 return
+            
+            code_key = str(uuid.uuid4())[:6]  # สร้างรหัสการสั่งซื้อ
 
-            username = d[1]
-            num_lottery = d[2]
-            image_lottery = d[3]
-            amount = d[4]
-            price = d[5]
-            status = d[7]
+            for row in d:
+                # ดึงค่าจากแถว
+                username = row[1]
+                num_lottery = row[2]
+                image_lottery = row[3]
+                amount = row[4]
+                price = row[5]
+                status = row[7]
+                lottery_date = row[9]
 
-            # ตรวจสอบสถานะ
-            if status == 'ชำระเงินแล้ว':
-                print("Order already paid.")
-            elif status == 'ยังไม่ชำระ':
                 # แปลงภาพลอตเตอรี่เป็นไบนารี
+                img_binary_lot = None
                 if image_lottery:
                     try:
                         img = Image.open(io.BytesIO(image_lottery))
@@ -1253,23 +1376,38 @@ class main:
                     except Exception as e:
                         print(f"Error processing lottery image: {e}")
 
+                # กำหนดค่า img_binary_slip ให้เป็นไฟล์สลิปที่แนบมา หรือค่าว่างถ้าไม่มีสลิป
+                if 'img_binary_slip' in globals() and img_binary_slip:  # ตรวจสอบว่ามีการกำหนดค่าสลิปหรือไม่
+                    slip_order = img_binary_slip
+                else:
+                    slip_order = b""  # กำหนดค่าเริ่มต้นเป็นไฟล์เปล่า (เมื่อไม่มีสลิป)
+
                 # เพิ่มข้อมูลในตาราง save
                 self.c.execute(
                     '''
                     INSERT INTO save (
-                        username_save, num_lottery_save, slip, amount_save, price_save, status_save, img_lottery_save
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        username_save, num_lottery_save, amount_save, price_save, status_save, img_lottery_save, slip_order, order_code, win_prize, lottery_date
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''',
-                    (username, num_lottery, img_binary_slip, amount, price, status, img_binary_lot)
+                    (username, num_lottery, amount, price, status, img_binary_lot, slip_order, code_key,'รอรอดำเนินการ',lottery_date)
                 )
                 self.conn.commit()
+                
+                # ลบข้อมูลจากตาราง lottery
+                self.c.execute('DELETE FROM lottery WHERE num_id = ?', (num_lottery,))  # ใช้ num_id หรือชื่อคอลัมน์ที่ถูกต้อง
+                self.conn.commit()
+
+            # ลบคำสั่งซื้อทั้งหมดที่ผู้ใช้ทำ
+            self.c.execute('DELETE FROM orders WHERE User_orders = ?', (self.username,))
+            self.conn.commit()
+
+            self.cart_page()  # รีเฟรชหน้าตะกร้า
 
         except Exception as e:
             print(f"Error in clear_stock: {e}")
         finally:
             if self.conn:
                 self.conn.close()
-
 
     def Mysave_page(self):
         self.changeColor_icon(self.Mysave_page, "save", self.save_btn)
@@ -1279,9 +1417,9 @@ class main:
         try:
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
-
+        
             # ดึงข้อมูลจากตาราง save
-            self.c.execute('SELECT num_lottery_save, img_lottery_save, amount_save, price_save, status_save, order_code FROM save WHERE username_save = ?', (self.username,))
+            self.c.execute('SELECT num_lottery_save, img_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date FROM save WHERE username_save = ?', (self.username,))
             save_data = self.c.fetchall()
         except Exception as e:
             print(f"Error fetching orders: {e}")
@@ -1289,87 +1427,78 @@ class main:
         finally:
             if self.conn:
                 self.conn.close()
-                
+
         def edit_slip():
             self.payment_page = tk.Toplevel(self.store)
             self.payment_page.geometry('400x600')
             self.payment_page.title('ชำระเงิน')
             global img_slip
             file_path = filedialog.askopenfilename(
-            title="แนบสลิป",
-            filetypes=(("JPEG files", "*.jpg"), ("All files", "*.*")))
+                title="แนบสลิป",
+                filetypes=(("JPEG files", "*.jpg"), ("All files", "*.*"))
+            )
 
             if file_path:
                 self.file_path = file_path
                 img = Image.open(file_path)
                 img = img.resize((200, 280))  # ปรับขนาดภาพให้พอดีกับหน้าจอ
                 img_slip = ctk.CTkImage(img, size=(200, 280))
-                
+
                 # แปลงภาพเป็นไบนารี
                 with io.BytesIO() as output:
                     global img_binary_slip
                     img.save(output, format="PNG")  # บันทึกเป็น PNG ในหน่วยความจำ
                     img_binary_slip = output.getvalue()  # ดึงข้อมูลไบนารี
-            
-                show_slip = ctk.CTkLabel(self.payment_page,image=img_slip,width=200,height=280,text='')
-                show_slip.grid(row = 2,column = 0,sticky= 'nsew',pady = 5,padx = 100 )
-                
-                confirm_btn = ctk.CTkButton(self.payment_page,text='ยืนยันการชำระเงิน',font=('Prompt',14)
-                                            ,height=40,width=20,
-                                            command  = self.clear_stock)
-                confirm_btn.grid(row =3,column = 0,sticky= 'nsew',pady = 5,padx = 100 )
+
+                show_slip = ctk.CTkLabel(self.payment_page, image=img_slip, width=200, height=280, text='')
+                show_slip.grid(row=2, column=0, sticky='nsew', pady=5, padx=100)
+
+                confirm_btn = ctk.CTkButton(self.payment_page, text='ยืนยันการชำระเงิน', font=('Prompt', 14), height=40, width=20, command=self.clear_stock)
+                confirm_btn.grid(row=3, column=0, sticky='nsew', pady=5, padx=100)
         
-   
         # สร้าง Container สำหรับแสดงข้อมูล
         self.save_page_con = ctk.CTkFrame(self.container, width=880, height=900, fg_color='#ffffff')
-        self.save_page_con.grid(row=0, column=0,sticky='nsew')
+        self.save_page_con.grid(row=0, column=0, sticky='nsew')
 
-        save_canvas = ctk.CTkScrollableFrame(self.save_page_con, width=850, height=580, fg_color='white'
-                                             ,scrollbar_button_color='white',scrollbar_button_hover_color='white')
+        save_canvas = ctk.CTkScrollableFrame(self.save_page_con, width=850, height=580, fg_color='white',
+                                            scrollbar_button_color='white', scrollbar_button_hover_color='white')
         save_canvas.grid(row=0, column=0, padx=60, pady=20, sticky='nsew')
         save_canvas.columnconfigure(0, weight=1)  # กำหนดให้ column 0 ขยายตามความกว้างของ Container
         save_canvas.rowconfigure(0, weight=1)  # กำหนดให้ row 0 ขยายตามความสูงของ Container
 
-
-        label_header = ctk.CTkLabel(save_canvas , text='รายการสั่งซื้อ', font=('Kanit Regular', 30), text_color='black') # กำหนดขนาดของ Label'
-        label_header.grid(row=0, column=0,  sticky='nsew',columnspan = 2)  # ใช้ sticky เพื่อขยาย Label ให้เต็มความกว้างของ Container
+        label_header = ctk.CTkLabel(save_canvas, text='รายการสั่งซื้อ', font=('Kanit Regular', 30), text_color='black')
+        label_header.grid(row=0, column=0, sticky='nsew', columnspan=2)  # ใช้ sticky เพื่อขยาย Label ให้เต็มความกว้างของ Container
 
         # สร้าง dictionary เพื่อเก็บ order_group ตาม order_code
         order_groups = {}
         # วนลูปแสดงข้อมูลแต่ละรายการ
         for i, save in enumerate(save_data):
             try:
-                num_lottery, img_lot, amount, price, status, order_code = save
+                num_lottery, img_lot, amount, price, status, order_code, win_prize, lottery_date = save
 
                 # ถ้ายังไม่มี group สำหรับ order_code นี้ ให้สร้างใหม่
                 if order_code not in order_groups:
-                    order_group = ctk.CTkFrame(save_canvas, width=680, height=100, fg_color='white',corner_radius=10,border_color='#e8e8ed',border_width=2)
+                    order_group = ctk.CTkFrame(save_canvas, width=680, height=100, fg_color='white', corner_radius=10, border_color='#e8e8ed', border_width=2)
                     order_group.grid(row=len(order_groups) + 1, column=0, pady=10, sticky='nsew', padx=10, columnspan=2)
                     order_groups[order_code] = order_group  # เก็บกลุ่มนี้ไว้ตาม order_code
-                    
+
                     order_box = ctk.CTkFrame(order_group, width=675, height=100, fg_color='white')
                     order_box.grid(row=0, column=0, pady=10, sticky='nsew', padx=5, columnspan=2)
-
+                    
                     code_order_label = ctk.CTkLabel(order_group, text=f"รหัสสั่งซื้อ: {order_code}", font=('Kanit Regular', 16), text_color='black', bg_color='white')
                     code_order_label.grid(row=1, column=0, padx=15, pady=10, sticky='w')
-                    
-                    total_price_label = ctk.CTkLabel(order_group,text = f'ยอดรวม {price} บาท',text_color= 'black',font=('Kanit Regular', 16)
-                                                     , bg_color='white')
-                    total_price_label.grid(row=1, column=2, padx=15, pady=10, sticky='e')
 
                     order_group.columnconfigure(3, weight=1)
-                    
-                    column_attibute = ctk.CTkFrame(order_box, width=680, height=120, fg_color='white')
-                    column_attibute.grid(row=1, column=0, padx=2, pady=8, sticky='nsew')
 
-                    column_attibute.columnconfigure(3, weight=1)
+                    column_attribute = ctk.CTkFrame(order_box, width=680, height=120, fg_color='white')
+                    column_attribute.grid(row=1, column=0, padx=2, pady=8, sticky='nsew')
 
-                    colum_list = ['หมายเลขลอตเตอรี่', 'จำนวน', 'ราคา', 'สถานะ']
-                    for i, col in enumerate(colum_list):
-                        label = ctk.CTkLabel(column_attibute, text=col, font=('Kanit Regular', 16), text_color='black', bg_color='white')
-                        label.grid(row=0, column=i, padx=60, pady=10, sticky='nsew')
-                    
+                    column_attribute.columnconfigure(3, weight=1)
 
+                    column_list = ['หมายเลขลอตเตอรี่', 'จำนวน', 'ราคา', 'สถานะ/ผลรางวัล']
+                    for j, col in enumerate(column_list):
+                        label = ctk.CTkLabel(column_attribute, text=col, font=('Kanit Regular', 16), text_color='black', bg_color='white')
+                        label.grid(row=0, column=j, padx=60, pady=10, sticky='nsew')
 
                 # เลือกกลุ่มที่มีอยู่แล้วสำหรับ order_code นี้
                 order_group = order_groups[order_code]
@@ -1382,41 +1511,194 @@ class main:
                         img_lottery = ImageTk.PhotoImage(img1)
                     except Exception as e:
                         print(f"Error loading image: {e}")
-                line_frame = ctk.CTkFrame(order_box,width=150,height=2,fg_color='#e8e8ed')
-                line_frame.grid(row=i+2, column=0, pady=10, sticky='nsew', padx=10, columnspan=2)
+
+                line_frame = ctk.CTkFrame(order_box, width=150, height=2, fg_color='#e8e8ed')
+                line_frame.grid(row=i + 2, column=0, pady=10, sticky='nsew', padx=10, columnspan=2)
 
                 # สร้างรายการภายในกลุ่ม order_group
-                save_list_con = ctk.CTkFrame(order_box, width=800, height=100, bg_color='white',fg_color='white')
+                save_list_con = ctk.CTkFrame(order_box, width=800, height=100, bg_color='white', fg_color='white')
                 save_list_con.grid(row=i + 3, column=0, pady=5, sticky='nsew', padx=20, columnspan=2)
                 save_list_con.columnconfigure(3, weight=1)
 
-                label_image = tk.Label(save_list_con, image=img_lottery)
+                label_image = tk.Label(save_list_con, image=img_lottery, width=200, height=100)
                 label_image.image = img_lottery  # เก็บ reference เพื่อป้องกัน garbage collection
                 label_image.grid(row=i, column=0, padx=10, pady=10)
+                 
+                label_num = ctk.CTkLabel(save_list_con, text=num_lottery, font=('Kanit Regular', 20), text_color='black', bg_color='white',width=80)
+                label_num.grid(row=i, column=0, padx=32, pady=16, sticky='ne')
 
-                label_amont = ctk.CTkLabel(save_list_con, text=f"x{amount}" ,font=('Kanit Regular', 16), text_color='#86868b', bg_color='white')
-                label_amont.grid(row=i, column=1, padx=80, pady=10, sticky='nsew')
+                label_amount = ctk.CTkLabel(save_list_con, text=f"x{amount}", font=('Kanit Regular', 16), text_color='#86868b', bg_color='white')
+                label_amount.grid(row=i, column=1, padx=80, pady=10, sticky='nsew')
 
                 label_price = ctk.CTkLabel(save_list_con, text=price, font=('Kanit Regular', 16), text_color='#86868b', bg_color='white')
                 label_price.grid(row=i, column=2, padx=60, pady=10, sticky='nsew')
 
-                label_status = ctk.CTkLabel(save_list_con, text='รอดำเนินการ', font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
+                label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
                 label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
 
-                if status == 'ชำระเงินแล้ว':
-                    label_status = ctk.CTkLabel(save_list_con, text='รอประกาศรางวัล', font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
+                if status == 'ชำระเงินแล้ว': 
+                    label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
                     label_status.grid(row=i, column=3, padx=100, pady=10, sticky='nsew')
 
+                    # ตรวจสอบก่อนว่าข้อมูลใน revenue_report มีอยู่แล้วหรือไม่
+                    try:
+                        order_code = order_code
+                        lottery_id = num_lottery  
+                        price = price
+                        amount = amount
+                        lottery_date = lottery_date
+                        total_price = price * amount  
+
+                        # เชื่อมต่อกับฐานข้อมูล
+                        self.conn = sqlite3.connect('data.db')
+                        self.c = self.conn.cursor()
+
+                        # ตรวจสอบว่า order_code นี้มีอยู่ใน revenue_report หรือไม่
+                        self.c.execute('''SELECT * FROM revenue_report WHERE order_code = ? AND lottery_id = ?''', (order_code, lottery_id,))
+                        existing_data = self.c.fetchone()
+                        # ถ้าพบว่า order_code นี้มีอยู่แล้ว ให้ข้ามการบันทึก
+                        if existing_data:
+                            self.conn.close()
+                        else:
+                            # ถ้าไม่พบข้อมูล ให้ทำการบันทึกใหม่
+                            self.c.execute('''INSERT INTO revenue_report (order_code, lottery_id, price, amount, lottery_date, total_price)
+                                            VALUES (?, ?, ?, ?, ?, ?)''',
+                                        (order_code, lottery_id, price, amount, lottery_date, total_price))
+                            self.conn.commit()
+                        
+                    except Exception as e:
+                        print(f"เกิดข้อผิดพลาดตรง revenue: {e}")
+                    finally:
+                        if self.conn:
+                            self.conn.close()
+
+                    request_receipt_btn = ctk.CTkButton(
+                        order_group,
+                        text="ขอใบเสร็จ",
+                        font=("Kanit Regular", 16),
+                        text_color="black",
+                        bg_color="white",
+                        command=lambda order_code=order_code, save_data=save_data: self.request_receipt(order_code, save_data)
+                    )
+                    request_receipt_btn.grid(row=1, column=1, padx=15, pady=10, sticky="w")
+
                 elif status == 'การชำระไม่ถูกต้อง':
-                    edit_slip = ctk.CTkButton(save_list_con, text='แก้ไขข้อมูล', font=('Prompt', 14), fg_color='red', command=edit_slip)
-                    edit_slip.grid(row=i, column=3, padx=100, pady=10, sticky='nsew')
-                    pass
+                    edit_slip_btn = ctk.CTkButton(save_list_con, text='แก้ไขข้อมูล', font=('Prompt', 14), fg_color='red', command=edit_slip)
+                    edit_slip_btn.grid(row=i, column=3, padx=100, pady=10, sticky='nsew')
+
             except Exception as e:
                 print(f"Error processing save data: {e}")
                 continue
+            
+    def request_receipt(self, order_code, save_data):
+        # เก็บค่า order_code ไว้ในตัวแปรของคลาส
+        self.order_code = order_code  
 
+        receipt_window = tk.Toplevel(self.store)
+        receipt_window.geometry("500x600")
+        receipt_window.title("ใบเสร็จ")
 
-       
+        total_price = sum(price for (num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date) in save_data if order_code == order_code_data)
+
+        # ส่วนหัวของใบเสร็จ
+        header_label = ctk.CTkLabel(receipt_window, text="ใบเสร็จชำระเงิน", font=("Kanit Regular", 20), text_color="black")
+        header_label.pack(pady=10)
+
+        # เส้นคั่นบน
+        separator1 = ctk.CTkLabel(receipt_window, text="-" * 100, font=("Kanit Regular", 12), text_color="black")
+        separator1.pack(pady=5)
+
+        # ส่วนตารางรายละเอียด
+        table_frame = ctk.CTkFrame(receipt_window, fg_color="lightgray", width=450, height=300)
+        table_frame.pack(pady=10, padx=10, fill="both", expand=True)
+
+        # หัวตาราง
+        table_header = ctk.CTkLabel(
+            table_frame, text="หมายเลขคำสั่งซื้อ      จำนวน      ล็อตเตอรี่หมายเลข      ราคา", 
+            font=("Kanit Regular", 14), text_color="black"
+        )
+        table_header.pack(anchor="w", padx=20, pady=5)
+
+        # เส้นคั่น
+        separator2 = ctk.CTkLabel(table_frame, text="-" * 100, font=("Kanit Regular", 12), text_color="black")
+        separator2.pack(anchor="w", padx=20)
+
+        # รายการลอตเตอรี่
+        for save in save_data:
+            num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date = save
+            if order_code == order_code_data:
+                detail_label = ctk.CTkLabel(
+                    table_frame,
+                    text=f"{order_code_data}                  {amount}            {num_lottery}                {price:,.2f} บาท",
+                    font=("Kanit Regular", 14),
+                    text_color="black",
+                )
+                detail_label.pack(anchor="w", padx=20, pady=2)
+
+        # เส้นคั่นล่าง
+        separator3 = ctk.CTkLabel(receipt_window, text="-" * 50, font=("Kanit Regular", 12), text_color="black")
+        separator3.pack(pady=5)
+
+        # ส่วนรวมยอดเงิน
+        total_price_label = ctk.CTkLabel(receipt_window, text=f"รวม          {total_price:,.2f} บาท", font=("Kanit Regular", 16), text_color="black")
+        total_price_label.pack(pady=5)
+
+        # ปุ่ม 
+        button_frame = ctk.CTkFrame(receipt_window, fg_color="lightgray")
+        button_frame.pack(pady=20)
+
+        # ปุ่มขอไฟล์ PDF
+        pdf_button = ctk.CTkButton(button_frame, text="ขอไฟล์ PDF", command=lambda: self.export_to_pdf(order_code, save_data), font=("Prompt", 14))
+        pdf_button.grid(row=0, column=0, padx=10)
+
+        # ปุ่มปิด
+        close_button = ctk.CTkButton(button_frame, text="กลับ", command=receipt_window.destroy, font=("Prompt", 14))
+        close_button.grid(row=0, column=1, padx=10)
+
+    
+    def export_to_pdf(self, order_code, save_data):
+        # หา angsana new
+        pdfmetrics.registerFont(TTFont('AngsanaNew', 'C:\Windows\Fonts\ANGSANA.ttc'))
+
+        # บันทึกใน download
+        file_path = f"D:/download/receipt_{order_code}.pdf"
+
+        # ตรวจสอบว่าโฟลเดอร์มีอยู่หรือไม่ ถ้าไม่มีให้สร้างใหม่
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+
+        # สร้าง canvas สำหรับสร้าง PDF
+        c = canvas.Canvas(file_path, pagesize=letter)
+        c.setFont("AngsanaNew", 18)  # ใช้ฟอนต์ที่ลงทะเบียน
+
+        # ข้อมูลที่จะแสดงใน PDF
+        total_price = sum(price for (num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date) in save_data if order_code == order_code_data)
+
+        # ส่วนหัวของใบเสร็จ
+        c.drawString(200, 750, "ใบเสร็จชำระเงิน")
+
+        # ใส่หมายเลขคำสั่งซื้อและยอดรวม
+        c.drawString(100, 730, f"หมายเลขคำสั่งซื้อ: {order_code}")
+        c.drawString(100, 710, "จำนวน          ล็อตเตอรี่หมายเลข          ราคา")  
+        c.drawString(100, 690, "---------------------------------------------------------------")
+        y_position = 670
+        for save in save_data:
+            num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date = save
+            if order_code == order_code_data:
+                c.drawString(100, y_position, f"{amount}                    {num_lottery}                            {price:,.2f} บาท")
+                y_position -= 20 
+        c.drawString(100, y_position-20, "---------------------------------------------------------------")
+        c.drawString(250, y_position-40, f"ยอดรวม: {total_price:,.2f} บาท")
+        c.drawString(250, y_position-60, f"ALLLOTTERY")
+        c.save()
+        print(f"ใบเสร็จถูกสร้างเรียบร้อย: {file_path}")
+
+        # เปิดไฟล์ PDF ทันที
+        try:
+            os.startfile(file_path)
+        except Exception as e:
+            print(f"ไม่สามารถเปิดไฟล์ PDF ได้: {e}")
+
     def profile_page(self):
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
@@ -1447,20 +1729,12 @@ class main:
             self.scroll_canvas.create_window((0, 0), window=self.main_con, anchor='nw')
 
             # อัปเดต scrollregion ของ Canvas
-            self.main_con.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))
-
-            # ฟังก์ชันสำหรับการเลื่อน Canvas เมื่อใช้ Scroll Wheel
-            def on_mouse_scroll(event):
-                self.scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-                if event.delta > 0 or event.keysym == 'Up':     # เลื่อนขึ้น
-                    self.scroll_canvas.yview_scroll(-1, "units")
-                elif event.delta < 0 or event.keysym == 'Down': # เลื่อนลง
-                    self.scroll_canvas.yview_scroll(1, "units")        
+            self.main_con.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))   
 
             # ผูก Scroll Wheel เข้ากับ Canvas
-            self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
-            self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
-            self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows
+            self.scroll_canvas.bind_all("<MouseWheel>", self.on_mouse_scroll) 
+            self.scroll_canvas.bind_all("<Up>", self.on_mouse_scroll)# สำหรับ Windows
+            self.scroll_canvas.bind_all("<Down>", self.on_mouse_scroll)# สำหรับ Windows
             user_info_card = ctk.CTkFrame(self.main_con, fg_color='#ff3131', width=600, height=200, corner_radius=15)
             user_info_card.grid(row=0, column=0, padx=200,pady=50)
 
@@ -1577,19 +1851,11 @@ class main:
 
         # อัปเดต scrollregion ของ Canvas
         self.main_con.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))
-
-        # ฟังก์ชันสำหรับการเลื่อน Canvas เมื่อใช้ Scroll Wheel
-        def on_mouse_scroll(event):
-            self.scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-            if event.delta > 0 or event.keysym == 'Up':     # เลื่อนขึ้น
-                self.scroll_canvas.yview_scroll(-1, "units")
-            elif event.delta < 0 or event.keysym == 'Down': # เลื่อนลง
-                self.scroll_canvas.yview_scroll(1, "units")        
-
+  
         # ผูก Scroll Wheel เข้ากับ Canvas
-        self.scroll_canvas.bind_all("<MouseWheel>", on_mouse_scroll) 
-        self.scroll_canvas.bind_all("<Up>", on_mouse_scroll)# สำหรับ Windows
-        self.scroll_canvas.bind_all("<Down>", on_mouse_scroll)# สำหรับ Windows
+        self.scroll_canvas.bind_all("<MouseWheel>", self.on_mouse_scroll) 
+        self.scroll_canvas.bind_all("<Up>", self.on_mouse_scroll)# สำหรับ Windows
+        self.scroll_canvas.bind_all("<Down>", self.on_mouse_scroll)# สำหรับ Windows
 
         container_frame = ctk.CTkFrame(self.main_con, fg_color='#fbf5f5', width=700, height=900, corner_radius=15)
         container_frame.grid(row=1, column=0, padx=200, pady=20)
@@ -1825,10 +2091,8 @@ class main:
             tkinter.messagebox.showinfo(title, message)
         elif msg_type == "error":
             tkinter.messagebox.showerror(title, message)
-
-    def view_order_history(self):
-        pass
-    
+            
+    '''
     def lottery_win_menu(self):
         self.clear_main_con()
         self.main_container()
@@ -1917,7 +2181,8 @@ class main:
             entry.delete(0, "end")
         for result_label in self.result_labels:
             result_label.configure(text="", fg_color="transparent")
-
+    '''        
+            
     def admin_menu_ui(self):
         self.root.destroy()  # ปิดหน้าต่างหลัก
         self.admin_store = tk.Tk()  # สร้างหน้าต่างใหม่สำหรับหน้าผู้ดูแลระบบ
@@ -1966,7 +2231,7 @@ class main:
             hover_color='#ff914d',
             command=self.add_lottery_page
         )
-        self.addlottery_btn.place(x=0, y=180)
+        self.addlottery_btn.place(x=0, y=175)
 
         add_lottery_image = Image.open(r'D:\python_finalproject\img\icon\white\addlottery.png')
         add_lottery_img_icon = ctk.CTkImage(add_lottery_image, size=(80, 40))
@@ -1985,9 +2250,27 @@ class main:
             hover_color='#ff914d',
             command=self.prize_lottery_page
         )
-        self.addlottery_btn.place(x=0, y=280)
+        self.addlottery_btn.place(x=0, y=265)
         
-        
+        report_revenue_image = Image.open(r'D:\python_finalproject\img\icon\admin\report.png')
+        report_revenue_img_icon = ctk.CTkImage(report_revenue_image, size=(80, 40))
+        self.report_revenue_btn = ctk.CTkButton(
+            admin_bar,
+            fg_color='#ff914d',
+            border_width=0,
+            corner_radius=0,
+            width=100,
+            height=90,
+            image=report_revenue_img_icon,
+            text='ยอดสรุป',
+            font=('Kanit Regular', 14),
+            compound=TOP,
+            bg_color='#ff914d',
+            hover_color='#ff914d',
+            command=self.revenue_page
+        )
+        self.report_revenue_btn.place(x=0, y=350)
+
         # ปุ่มออกจากระบบ
         logout_image = Image.open(r'D:\python_finalproject\img\icon\white\25.png')
         logout_img_icon = ctk.CTkImage(logout_image, size=(80, 40))
@@ -2006,7 +2289,7 @@ class main:
             hover_color='#ff914d',
             command=self.logout_admin
         )
-        self.logout_btn.place(x=0, y=495)
+        self.logout_btn.place(x=0, y=500)
         
         self.admin_main_con = ctk.CTkCanvas(self.admin_store)
         self.admin_main_con.place(x=100, y=0, width=1820, height=1080)
@@ -2021,8 +2304,8 @@ class main:
         self.root.title('ALL LOTTERY')
         self.login_store()
    
+   
     def admin_page(self):
-        # สร้าง Container หลักสำหรับ Admin Page
         self.admin_container = ctk.CTkFrame(
             self.admin_store, 
             width=1920, 
@@ -2032,7 +2315,18 @@ class main:
         )
         self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        # สร้าง Canvas สำหรับเลื่อน
+        header_label = ctk.CTkLabel(
+        self.admin_container, 
+        text="หน้าต่างแอดมิน", 
+        font=('Kanit Regular', 24),
+        text_color='white',  
+        bg_color="#ff914d", 
+        width=1920, 
+        height=60,
+        anchor='w'
+        )
+        header_label.place(x=0, y=0) 
+
         self.scroll_canvas = tk.Canvas(
             self.admin_container, 
             bg='white', 
@@ -2042,7 +2336,6 @@ class main:
         )
         self.scroll_canvas.place(x=50, y=80)
 
-        # สร้าง Scrollbar แนวตั้ง
         self.scrollbar1 = ctk.CTkScrollbar(
             self.admin_container, 
             orientation='vertical', 
@@ -2063,12 +2356,9 @@ class main:
 
         self.main_frame.bind("<Configure>", update_scroll_region)
 
-        # ฟังก์ชันเลื่อนด้วย Mouse Wheel
-        def on_mouse_scroll(event):
-            self.scroll_canvas.yview_scroll(-1 * (event.delta // 120), "units")
 
         # ผูก Scroll Wheel เข้ากับ Canvas
-        self.scroll_canvas.bind("<MouseWheel>", on_mouse_scroll)
+        self.scroll_canvas.bind("<MouseWheel>", self.on_mouse_scroll)
 
         # สร้างกรอบสำหรับปุ่มใน Frame หลัก
         self.button_frame = tk.Frame(self.main_frame, bg='white')
@@ -2110,19 +2400,21 @@ class main:
         )
         self.manage_order_admin_btn.grid(row=3, column=0, padx=20, pady=20)
 
+        manage_save_admin_image = Image.open(r'D:\python_finalproject\img\icon\admin\viewsave.png')
+        manage_save_admin_icon = ctk.CTkImage(manage_save_admin_image, size=(740, 136))
+        self.manage_save_admin_btn = ctk.CTkButton(
+            self.button_frame, fg_color='white', width=740, height=136, image=manage_save_admin_icon,
+            command=self.manage_save_admin_page, hover_color='white', text=''
+        )
+        self.manage_save_admin_btn.grid(row=4, column=0, padx=20, pady=20)
+
         # อัปเดตแสดงผล
         self.admin_container.update()
-
 
     def clear_admin_main_con(self):
         for widget in self.admin_main_con.winfo_children():
             widget.destroy()
 
-    def clear_main_con(self):
-        for widget in self.main_con.winfo_children():
-            widget.destroy()  
-
-    # ปุ่มดูข้อมูล admin
     def manage_lottery_page(self):
         self.clear_admin_main_con() 
         self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
@@ -2155,7 +2447,7 @@ class main:
         horiz_scrollbar = tk.Scrollbar(frame, orient="horizontal")
         horiz_scrollbar.pack(side="bottom", fill="x")
 
-        columns = ("ID", "Type", "Number ID", "Price", "Amount")
+        columns = ("ID", "Type", "Number ID", "Price", "Amount","Lottery Date")
         self.lottery_tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=vert_scrollbar.set, xscrollcommand=horiz_scrollbar.set)
 
         for col in columns:
@@ -2183,7 +2475,8 @@ class main:
         for row in self.lottery_tree.get_children():
             self.lottery_tree.delete(row)
 
-        self.c.execute('SELECT id, type_lottery, num_id, price, amount FROM lottery')
+
+        self.c.execute('SELECT id, type_lottery, num_id, price, amount, lottery_date FROM lottery')
         rows = self.c.fetchall()
 
         for row in rows:
@@ -2208,20 +2501,9 @@ class main:
             self.lottery_tree.insert("", tk.END, values=row)
 
         self.close_db()
-
+    
     def edit_lottery(self):
-        selected_item = self.lottery_tree.selection()
-        if not selected_item:
-            messagebox.showerror("ข้อผิดพลาด", "กรุณาเลือกรายการที่ต้องการแก้ไข")
-            return
-
-        # ดึงข้อมูลจากแถวที่เลือก
-        selected_user = self.lottery_tree.item(selected_item, "values")
-        if not selected_user:
-            messagebox.showerror("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้")
-            return
-        
-        self.edit_lottery_window = ctk.CTkToplevel(self.admin_container)
+        self.edit_lottery_window = tk.Toplevel(self.admin_container)
         self.edit_lottery_window.title("แก้ไขข้อมูลล็อตเตอรรี่")
         
         # ตั้งค่า scaling ให้ตรงกับหน้าหลัก
@@ -2231,7 +2513,7 @@ class main:
         form_frame = ctk.CTkFrame(self.edit_lottery_window, fg_color="white")
         form_frame.pack(pady=20, padx=20, fill="both", expand=True)
         
-        labels = ["ID", "Lottery Type", "Lottery Number", "Price", "Amount"]
+        labels = ["ID", "Lottery Type", "Lottery Number", "Price", "Amount","Lottery Date"]
         self.entries_lottery = []  
         
         for i, label in enumerate(labels):
@@ -2245,6 +2527,7 @@ class main:
 
         self.load_lottery_data_to_edit()
         
+
     def load_lottery_data_to_edit(self):
         selected_item = self.lottery_tree.selection()
         if selected_item:
@@ -2280,27 +2563,31 @@ class main:
         self.edit_lottery_window.destroy()
 
     def delete_lottery(self):
-        selected_lottery = self.lottery_tree.selection()
-        if not selected_lottery:
+        selected_lotteries = self.lottery_tree.selection()
+        if not selected_lotteries:
             messagebox.showwarning("Warning", "กรุณาเลือกข้อมูลที่ต้องการลบ!")
             return
 
-        lottery_id = self.lottery_tree.item(selected_lottery, 'values')[0]
-
-        confirm = messagebox.askyesno("Confirm", "คุณแน่ใจว่าจะลบข้อมูลนี้หรือไม่?")
+        confirm = messagebox.askyesno("Confirm", "คุณแน่ใจว่าจะลบข้อมูลที่เลือกหรือไม่?")
         if confirm:
             conn = sqlite3.connect('data.db')
             cursor = conn.cursor()
 
-            cursor.execute('DELETE FROM lottery WHERE id=?', (lottery_id,))
-
-
+            # loop อันที่เลือกทุกอัน
+            for selected_lottery in selected_lotteries:
+                lottery_id = self.lottery_tree.item(selected_lottery, 'values')[0]
+                cursor.execute('DELETE FROM lottery WHERE id=?', (lottery_id,))
+            
             conn.commit()
             conn.close()
 
-            self.lottery_tree.delete(selected_lottery)
-            self.refresh_lottery_list() 
-            
+            # ลบออกจากตาราง
+            for selected_lottery in selected_lotteries:
+                self.lottery_tree.delete(selected_lottery)
+
+            # รีหน้าจอ
+            self.refresh_lottery_list()
+
     def manage_user_page(self):
         self.clear_admin_main_con() 
         self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
@@ -2405,22 +2692,10 @@ class main:
 
         # ปิดการเชื่อมต่อกับฐานข้อมูล
         self.close_db()
-   
+
     def edit_user(self):
-        # ตรวจสอบว่ามีการเลือกผู้ใช้ใน Treeview หรือไม่
-        selected_item = self.user_tree.selection()
-        if not selected_item:
-            messagebox.showerror("ข้อผิดพลาด", "กรุณาเลือกรายการที่ต้องการแก้ไข")
-            return
-
-        # ดึงข้อมูลจากแถวที่เลือก
-        selected_user = self.user_tree.item(selected_item, "values")
-        if not selected_user:
-            messagebox.showerror("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลผู้ใช้ได้")
-            return
-
         # สร้างหน้าต่างย่อย
-        self.edit_user_window = ctk.CTkToplevel(self.admin_container)
+        self.edit_user_window = tk.Toplevel(self.admin_container)
         self.edit_user_window.title("แก้ไขข้อมูลผู้ใช้งาน")
         self.edit_user_window.geometry("400x700")  
         
@@ -2438,15 +2713,13 @@ class main:
             ctk.CTkLabel(form_frame, text=label, font=('Kanit Regular', 16)).grid(row=i, column=0, padx=10, pady=10)
             entry = ctk.CTkEntry(form_frame)
             entry.grid(row=i, column=1, padx=10, pady=10)
-            self.entries.append(entry)
-
-        # เติมข้อมูลในฟอร์มด้วยค่าที่เลือก
-        for i, value in enumerate(selected_user):
-            self.entries[i].insert(0, value)
+            self.entries.append(entry) 
 
         # ปุ่มยืนยันการแก้ไข
         save_btn = ctk.CTkButton(form_frame, text="บันทึก", font=('Kanit Regular', 16), command=self.save_user_edits)
         save_btn.grid(row=len(labels), column=0, columnspan=2, pady=20)
+
+        self.load_user_data_to_edit()
 
     def load_user_data_to_edit(self):
         selected_item = self.user_tree.selection()
@@ -2496,22 +2769,27 @@ class main:
             messagebox.showwarning("Warning", "กรุณาเลือกผู้ใช้ที่ต้องการลบ!")
             return
 
-        user_id = self.user_tree.item(selected_item, 'values')[0]
-
         confirm = messagebox.askyesno("Confirm", "คุณแน่ใจว่าจะลบผู้ใช้นี้หรือไม่?")
         if confirm:
             conn = sqlite3.connect('data.db')
             cursor = conn.cursor()
 
-            cursor.execute('DELETE FROM users WHERE id=?', (user_id,))
-
+            # loop อันที่เลือกทุกอัน
+            for selected_user in selected_item:
+                user_id = self.user_tree.item(selected_user, 'values')[0]
+                cursor.execute('DELETE FROM users WHERE id=?', (user_id,))
+            
             conn.commit()
             conn.close()
 
-            self.user_tree.delete(selected_item)
+            # ลบออกจากตาราง
+            for selected_user in selected_item:
+                self.user_tree.delete(selected_user)
 
+            # รีหน้าจอ
             self.refresh_user_list()
-   
+    
+
     def manage_prize_page(self):
         self.clear_admin_main_con()  
         self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
@@ -2562,9 +2840,6 @@ class main:
         delete_btn = ctk.CTkButton(self.whiteframebg, text="ลบข้อมูล", font=('Kanit Regular', 16), fg_color='black', command=self.delete_prize)
         delete_btn.place(x=180, y=420)
 
-        export_excel_btn = ctk.CTkButton(self.whiteframebg, text="นำออกเป็น Excel", font=('Kanit Regular', 16), fg_color='black', command=self.export_to_excel)
-        export_excel_btn.place(x=500, y=420)  
-
         back_btn = ctk.CTkButton(self.whiteframebg, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.admin_page)
         back_btn.place(x=650, y=420)
 
@@ -2608,18 +2883,8 @@ class main:
         self.close_db()
 
     def edit_prize(self):
-        selected_item = self.prize_tree.selection()
-        if not selected_item:
-            messagebox.showerror("ข้อผิดพลาด", "กรุณาเลือกรายการที่ต้องการแก้ไข")
-            return
-
-        # ดึงข้อมูลจากแถวที่เลือก
-        selected_user = self.prize_tree.item(selected_item, "values")
-        if not selected_user:
-            messagebox.showerror("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลผู้ใช้ได้")
-            return
         # สร้างหน้าต่างย่อย
-        self.edit_prize_window = ctk.CTkToplevel(self.admin_container)
+        self.edit_prize_window = tk.Toplevel(self.admin_container)
         self.edit_prize_window.title("แก้ไขข้อมูลผู้ใช้งาน")
         self.edit_prize_window.geometry("400x400")  
         
@@ -2685,36 +2950,25 @@ class main:
             messagebox.showwarning("Warning", "กรุณาเลือกผู้ใช้ที่ต้องการลบ!")
             return
 
-        prize_id = self.prize_tree.item(selected_item, 'values')[0]
-
         confirm = messagebox.askyesno("Confirm", "คุณแน่ใจว่าจะลบข้อมูลนี้หรือไม่?")
         if confirm:
             conn = sqlite3.connect('data.db')
             cursor = conn.cursor()
 
-            cursor.execute('DELETE FROM results WHERE id=?', (prize_id,))
-
+            # loop อันที่เลือกทุกอัน
+            for selected_prize in selected_item:
+                prize_id = self.prize_tree.item(selected_prize, 'values')[0]
+                cursor.execute('DELETE FROM results WHERE id=?', (prize_id,))
+            
             conn.commit()
             conn.close()
 
-            self.prize_tree.delete(selected_item)
+            # ลบออกจากตาราง
+            for selected_prize in selected_item:
+                self.prize_tree.delete(selected_prize)
 
-            self.refresh_user_list()
-
-    def export_to_excel(self):
-        columns = self.prize_tree['columns']
-        data = []
-
-        for row in self.prize_tree.get_children():
-            data.append(self.prize_tree.item(row)['values'])
-
-        df = pd.DataFrame(data, columns=columns)
-
-        try:
-            df.to_excel('lottery_prize.xlsx', index=False)
-            messagebox.showinfo("สำเร็จ", "ข้อมูลถูกส่งออกไปยัง Excel เรียบร้อยแล้ว")
-        except Exception as e:
-            messagebox.showerror("ข้อผิดพลาด", f"เกิดข้อผิดพลาด: {str(e)}")        
+            # รีหน้าจอ
+            self.refresh_prize_list()
 
     def manage_order_admin_page(self):
         self.clear_admin_main_con() 
@@ -2801,10 +3055,10 @@ class main:
         """
         self.c.execute(query, ('%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%', 
                                '%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%'))
-        rows = self.c.fetchall()
+        rows = self.c.fetchall() # ดึงทั้งหมดเก็บไว้ใน rows
 
         for row in rows:
-            self.order_tree.insert("", "end", values=row)
+            self.order_tree.insert("", "end", values=row) # เพิ่มแถวใหม่เข้าไปใน Treeview โดยใช้ข้อมูลที่ดึงมาจากฐานข้อมูล (row)
         self.close_db()   
     
     def edit_order(self):
@@ -2823,10 +3077,10 @@ class main:
         self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
         self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
-        self.greyframebg.place(x=50, y=50) 
+        greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        greyframebg.place(x=50, y=50) 
 
-        self.text_header = ctk.CTkLabel(self.greyframebg, text="ข้อมูลออร์เดอร์", font=('Kanit Regular', 20))
+        self.text_header = ctk.CTkLabel(greyframebg, text="ข้อมูลออร์เดอร์", font=('Kanit Regular', 20))
         self.text_header.place(x=300, y=10)
         
         user_order = selected_order[1]  
@@ -2837,52 +3091,53 @@ class main:
             img.thumbnail((250, 550))  
             
             self.img_tk = ImageTk.PhotoImage(img)  
-            image_label = ctk.CTkLabel(self.greyframebg, text='', image=self.img_tk)
+            image_label = ctk.CTkLabel(greyframebg, text='', image=self.img_tk)
             image_label.place(x=40, y=70)  
+
         # สร้าง Label และ Entry สำหรับข้อมูล
-        order_id_label = ctk.CTkLabel(self.greyframebg, text="ID", font=('Kanit Regular', 16))
+        order_id_label = ctk.CTkLabel(greyframebg, text="ID", font=('Kanit Regular', 16))
         order_id_label.place(x=350, y=70)
-        self.order_id_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.order_id_entry = ctk.CTkEntry(greyframebg, width=270)
         self.order_id_entry.place(x=500, y=70)
 
-        user_order_label = ctk.CTkLabel(self.greyframebg, text="User Order", font=('Kanit Regular', 16))
+        user_order_label = ctk.CTkLabel(greyframebg, text="User Order", font=('Kanit Regular', 16))
         user_order_label.place(x=350, y=120)
-        self.user_order_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.user_order_entry = ctk.CTkEntry(greyframebg, width=270)
         self.user_order_entry.place(x=500, y=120)
 
-        lottery_number_label = ctk.CTkLabel(self.greyframebg, text="Lottery Number", font=('Kanit Regular', 16))
+        lottery_number_label = ctk.CTkLabel(greyframebg, text="Lottery Number", font=('Kanit Regular', 16))
         lottery_number_label.place(x=350, y=170)
-        self.lottery_number_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.lottery_number_entry = ctk.CTkEntry(greyframebg, width=270)
         self.lottery_number_entry.place(x=500, y=170)
 
-        amount_label = ctk.CTkLabel(self.greyframebg, text="Amount", font=('Kanit Regular', 16))
+        amount_label = ctk.CTkLabel(greyframebg, text="Amount", font=('Kanit Regular', 16))
         amount_label.place(x=350, y=220)
-        self.amount_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.amount_entry = ctk.CTkEntry(greyframebg, width=270)
         self.amount_entry.place(x=500, y=220)
 
-        price_label = ctk.CTkLabel(self.greyframebg, text="Price", font=('Kanit Regular', 16))
+        price_label = ctk.CTkLabel(greyframebg, text="Price", font=('Kanit Regular', 16))
         price_label.place(x=350, y=270)
-        self.price_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.price_entry = ctk.CTkEntry(greyframebg, width=270)
         self.price_entry.place(x=500, y=270)
 
-        cash_label = ctk.CTkLabel(self.greyframebg, text="Cash", font=('Kanit Regular', 16))
+        cash_label = ctk.CTkLabel(greyframebg, text="Cash", font=('Kanit Regular', 16))
         cash_label.place(x=350, y=320)
-        self.cash_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.cash_entry = ctk.CTkEntry(greyframebg, width=270)
         self.cash_entry.place(x=500, y=320)
 
-        status_label = ctk.CTkLabel(self.greyframebg, text="Status", font=('Kanit Regular', 16))
+        status_label = ctk.CTkLabel(greyframebg, text="Status", font=('Kanit Regular', 16))
         status_label.place(x=350, y=370)
-        self.status_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.status_entry = ctk.CTkEntry(greyframebg, width=270)
         self.status_entry.place(x=500, y=370)
 
         # โหลดข้อมูลออร์เดอร์
         self.load_order_data_to_edit(selected_order)
 
         # ปุ่มยืนยันการแก้ไข
-        save_btn = ctk.CTkButton(self.greyframebg, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.save_order_edit)
+        save_btn = ctk.CTkButton(greyframebg, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.save_order_edit)
         save_btn.place(x=350, y=450)
 
-        back_btn = ctk.CTkButton(self.greyframebg, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.manage_order_admin_page)
+        back_btn = ctk.CTkButton(greyframebg, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.manage_order_admin_page)
         back_btn.place(x=550, y=450)
 
     def load_order_data_to_edit(self, order_data):
@@ -2902,14 +3157,21 @@ class main:
         self.cash_entry.insert(0, order_data[5])  
         self.status_entry.insert(0, order_data[6])  
 
+
     def fetch_image_from_db(self, user_order):
-        self.connect_to_db()  
-        self.c.execute('SELECT slip FROM save WHERE username_save = ?', (user_order,))
-        image_data = self.c.fetchone()  
-        
+        conn = sqlite3.connect('data.db')
+        conn.execute('PRAGMA journal_mode = WAL')  
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT slip_order FROM save WHERE username_save = ?', (user_order,))
+        image_data = cursor.fetchone()
+        conn.close()  
+
         if image_data:
-            return image_data[0]  
-        return None  
+            return image_data[0]
+        return None
+
+        
 
     def save_order_edit(self):
         # Gather the new data from each entry
@@ -2971,79 +3233,103 @@ class main:
 
 
     def delete_order(self):
-        selected_item = self.order_tree.selection()
-        if not selected_item:
+        selected_items = self.order_tree.selection()  
+        if not selected_items:
             messagebox.showwarning("Warning", "กรุณาเลือกผู้ใช้ที่ต้องการลบ!")
             return
 
-        order_id = self.order_tree.item(selected_item, 'values')[0]
-
-        confirm = messagebox.askyesno("Confirm", "คุณแน่ใจว่าจะลบข้อมูลนี้หรือไม่?")
+        confirm = messagebox.askyesno("Confirm", "คุณแน่ใจว่าจะลบข้อมูลที่เลือกทั้งหมดหรือไม่?")
         if confirm:
             conn = sqlite3.connect('data.db')
             cursor = conn.cursor()
 
-            cursor.execute('DELETE FROM orders WHERE id=?', (order_id,))
+            # ลบข้อมูล
+            for selected_order in selected_items:
+                order_id = self.order_tree.item(selected_order, 'values')[0]  
+                cursor.execute('DELETE FROM orders WHERE id=?', (order_id,))
 
             conn.commit()
             conn.close()
 
-            self.order_tree.delete(selected_item)
+            # ลบแถวจากตาราง
+            for selected_order in selected_items:
+                self.order_tree.delete(selected_order)
 
+            # รีเฟรชรายการ
             self.refresh_order_list()
 
-    # icon ทางซ้ายๆ
+
     def add_lottery_page(self):
         self.clear_admin_main_con()
         self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
         self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
-        self.greyframebg.place(x=50, y=50) 
+        greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        greyframebg.place(x=50, y=50) 
 
-        self.text_header = ctk.CTkLabel(self.greyframebg, text="คลังลอตเตอรี่", font=('Kanit Regular', 20))
+        self.text_header = ctk.CTkLabel(greyframebg, text="คลังลอตเตอรี่", font=('Kanit Regular', 20))
         self.text_header.place(x=300, y=10)
 
-        lottery_number_label = ctk.CTkLabel(self.greyframebg, text="หมายเลขลอตเตอรี่", font=('Kanit Regular', 16))
+        lottery_number_label = ctk.CTkLabel(greyframebg, text="หมายเลขลอตเตอรี่", font=('Kanit Regular', 16))
         lottery_number_label.place(x=100, y=100)
 
-        self.lottery_number_entry = ctk.CTkEntry(self.greyframebg, width=300)
+        self.lottery_number_entry = ctk.CTkEntry(greyframebg, width=300)
         self.lottery_number_entry.place(x=300, y=100)
 
-        lottery_type_label = ctk.CTkLabel(self.greyframebg, text="ประเภทลอตเตอรรี่", font=('Kanit Regular', 16))
+        lottery_type_label = ctk.CTkLabel(greyframebg, text="ประเภทลอตเตอรรี่", font=('Kanit Regular', 16))
         lottery_type_label.place(x=100, y=150)
 
-        self.lottery_type_entry = ctk.CTkEntry(self.greyframebg, width=300)
+        self.lottery_type_entry = ctk.CTkComboBox(greyframebg, values=["หวยเดี่ยว", "หวยชุด"], width=300, state="readonly")
         self.lottery_type_entry.place(x=300, y=150)
 
-        amount_label = ctk.CTkLabel(self.greyframebg, text="จำนวน", font=('Kanit Regular', 16))
+        amount_label = ctk.CTkLabel(greyframebg, text="จำนวน", font=('Kanit Regular', 16))
         amount_label.place(x=100, y=200)
 
-        self.amount_entry = ctk.CTkEntry(self.greyframebg, width=300)
+        self.amount_entry = ctk.CTkEntry(greyframebg, width=300)
         self.amount_entry.place(x=300, y=200)
 
-        price_label = ctk.CTkLabel(self.greyframebg, text="ราคาต่อหน่วย", font=('Kanit Regular', 16))
+        price_label = ctk.CTkLabel(greyframebg, text="ราคาต่อหน่วย", font=('Kanit Regular', 16))
         price_label.place(x=100, y=250)
 
-        self.price_entry = ctk.CTkEntry(self.greyframebg, width=300)
+        self.price_entry = ctk.CTkEntry(greyframebg, width=300)
         self.price_entry.place(x=300, y=250)
         
-        self.select_label = ctk.CTkLabel(self.greyframebg,text='เลือกรูปลอตเตอรี่ : ',font=('Kanit Regular', 16))
-        self.select_label.place(x=100,y=300)
-        
-        self.select_con =  ctk.CTkFrame(self.greyframebg,width=280,height=130,fg_color='white')
-        self.select_con.place(x = 300 , y =300)
-        self.select_status = ctk.CTkLabel(self.select_con,text='',font=('Kanit Regular', 14))
-        self.select_status.place(x = 0 , y = 0)
-        
-        self.select_file_btn = ctk.CTkButton(self.greyframebg,text='เลือกไฟล์', font=('Kanit Regular', 16),
-                                             command=self.select_file)
-        self.select_file_btn.place(x=600,y=300)
-        self.file_path =None
+        # งวด
+        lottery_date_label = ctk.CTkLabel(greyframebg, text="งวดของวันที่", font=('Kanit Regular', 16))
+        lottery_date_label.place(x=100, y=300)
 
-        save_btn = ctk.CTkButton(self.greyframebg, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.add_lottery)
-        save_btn.place(x=400, y=450)
+        self.lottery_date_entry_day = ttk.Combobox(greyframebg, values=["1", "16"], width=5, state="readonly")
+        self.lottery_date_entry_day.place(x=350, y=300)
+
+        self.lottery_date_entry_month = ttk.Combobox(greyframebg, values=[
+            "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+            "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+        ], width=15, state="readonly")
+        self.lottery_date_entry_month.place(x=420, y=300)
+
+        current_year = datetime.now().year
+        self.lottery_date_entry_year = ttk.Combobox(greyframebg, values=list(range(current_year-1, current_year + 11)), width=6, state="readonly")
+        self.lottery_date_entry_year.place(x=560, y=300)
+
+        # เลือกไฟล์สลิป
+        self.select_label = ctk.CTkLabel(greyframebg, text='เลือกรูปลอตเตอรี่ : ', font=('Kanit Regular', 16))
+        self.select_label.place(x=100, y=350)
         
+        self.select_con = ctk.CTkFrame(greyframebg, width=280, height=130, fg_color='white')
+        self.select_con.place(x=300, y=350)
+        self.select_status = ctk.CTkLabel(self.select_con, text='', font=('Kanit Regular', 14))
+        self.select_status.place(x=0, y=0)
+        
+        self.select_file_btn = ctk.CTkButton(greyframebg, text='เลือกไฟล์', font=('Kanit Regular', 16), command=self.select_file)
+        self.select_file_btn.place(x=600, y=350)
+        
+        self.file_path = None
+
+        # ปุ่มบันทึก
+        save_btn = ctk.CTkButton(greyframebg, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.add_lottery)
+        save_btn.place(x=600, y=450)
+
+            
     def select_file(self):
         file_path = filedialog.askopenfilename(
             title="เลือกรูปลอตเตอรี่",
@@ -3052,7 +3338,7 @@ class main:
         if file_path:
             self.file_path = file_path
             img = Image.open(file_path)
-            img = img.resize((280, 130))  # ปรับขนาดภาพให้พอดีกับหน้าจอ
+            img = img.resize((280, 130)) 
             self.img_ctk = ctk.CTkImage(img, size=(280, 130))
           
             self.select_status.configure(image =self.img_ctk,text ='' )
@@ -3067,70 +3353,67 @@ class main:
         type_lottery = self.lottery_type_entry.get()
         amount = self.amount_entry.get()
         price = self.price_entry.get()
+        lottery_date_day = self.lottery_date_entry_day.get()
+        lottery_date_month = self.lottery_date_entry_month.get()
+        lottery_date_year = self.lottery_date_entry_year.get()
         image_path = self.file_path
-        # เปิดภาพ
-        self.img_lottery = Image.open(image_path)
-        
-        # แปลงภาพเป็นข้อมูลไบนารี
-        img_binary = io.BytesIO()
-        self.img_lottery.save(img_binary, format='JPEG')
-        img_binary_data = img_binary.getvalue()
-       
+
+        # ตรวจสอบการกรอกข้อมูล
+        if not num_lottery or not type_lottery or not amount.isdigit() or not price.isdigit() or not image_path:
+            tkinter.messagebox.showwarning("Warning", "กรุณากรอกข้อมูลให้ครบถ้วน")
+            return
+
         try:
-            self.c.execute('SELECT * FROM lottery WHERE num_id = ?',
-                        (num_lottery,))
+            # เปิดภาพ
+            self.img_lottery = Image.open(image_path)
+            
+            # แปลงภาพเป็นข้อมูลไบนารี
+            img_binary = io.BytesIO()
+            self.img_lottery.save(img_binary, format='JPEG')
+            img_binary_data = img_binary.getvalue()
+
+            # แปลงวันที่เป็นรูปแบบที่เหมาะสม
+            lottery_date = f"{lottery_date_day}-{lottery_date_month}-{lottery_date_year}"
+
+            # ตรวจสอบเลขลอตเตอรี่ในฐานข้อมูล
+            self.c.execute('SELECT * FROM lottery WHERE num_id = ?', (num_lottery,))
             current_amount = self.c.fetchone()
 
             if current_amount:
                 # ถ้าพบรายการแล้ว ให้เพิ่มจำนวนเข้าไป
-                new_amount = current_amount[3] 
-                self.c.execute('''
-                    UPDATE lottery 
-                    SET img_lottery = ?, 
-                        amount = ?, 
-                        price = ? 
-                    WHERE num_id = ? 
-                ''', (img_binary_data, new_amount, price * new_amount, num_lottery))
+                new_amount = current_amount[3] + int(amount)  # เพิ่มจำนวน
+                self.c.execute('''UPDATE lottery SET 
+                                    img_lottery = ?, 
+                                    amount = ?, 
+                                    price = ? 
+                                    WHERE num_id = ?''', 
+                            (img_binary_data, new_amount, int(price), num_lottery))
             else:
                 # ถ้าไม่พบรายการ ให้เพิ่มรายการใหม่
-                self.c.execute('''
-                    INSERT INTO lottery (num_id, img_lottery, amount, price, type_lottery) 
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (num_lottery, img_binary_data, amount, int(price) * int(amount),type_lottery))
+                self.c.execute('''INSERT INTO lottery (num_id, img_lottery, amount, price, type_lottery, lottery_date) 
+                                VALUES (?, ?, ?, ?, ?, ?)''', 
+                            (num_lottery, img_binary_data, int(amount), int(price), type_lottery, lottery_date))
 
             # ยืนยันการเปลี่ยนแปลงในฐานข้อมูล
             self.conn.commit()
             tkinter.messagebox.showinfo("Success", "เพิ่มล็อตเตอรี่ลงในตะกร้าเรียบร้อยแล้ว!")
-                                
+        
         except Exception as e:
             print(f"Error inserting data: {e}")
+            tkinter.messagebox.showerror("Error", f"เกิดข้อผิดพลาดในการเพิ่มข้อมูล: {e}")
+        
         finally:
             self.conn.close()
-
-    def save_lottery(self):
-        lottery_number = self.lottery_number_entry.get()
-        lottery_type = self.lottery_type_entry.get()
-        amount = self.amount_entry.get()
-        price = self.price_entry.get()
-
-        # Validate inputs
-        if lottery_number and lottery_type and amount.isdigit() and price.isdigit():
-            conn = sqlite3.connect('data.db')
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO lottery (num_id, type_lottery, amount, price) VALUES (?, ?, ?, ?)",
-                        (lottery_number, lottery_type, int(amount), int(price)))
-            conn.commit()
-            conn.close()
-            self.clear_add_lottery_fields()
-            self.refresh_lottery_list()
-        else:
-            print("กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง")  
 
     def clear_add_lottery_fields(self):
         self.lottery_number_entry.delete(0, tk.END)
         self.lottery_type_entry.delete(0, tk.END)
         self.amount_entry.delete(0, tk.END)
-        self.price_entry.delete(0, tk.END)       
+        self.price_entry.delete(0, tk.END) 
+
+        self.lottery_date_entry_day.set("")  
+        self.lottery_date_entry_month.set("") 
+        self.lottery_date_entry_year.set("")        
                
     def prize_lottery_page(self):
         self.clear_admin_main_con()  
@@ -3138,53 +3421,53 @@ class main:
         self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
         self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
-        self.greyframebg.place(x=50, y=50) 
+        greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        greyframebg.place(x=50, y=50) 
 
-        self.text_header = ctk.CTkLabel(self.greyframebg, text="บันทึกผลการจับสลาก", font=('Kanit Regular', 20))
+        self.text_header = ctk.CTkLabel(greyframebg, text="บันทึกผลการจับสลาก", font=('Kanit Regular', 20))
         self.text_header.place(x=300, y=10)
 
-        lottery_number_label = ctk.CTkLabel(self.greyframebg, text="หมายเลขลอตเตอรี่ที่ถูกรางวัล", font=('Kanit Regular', 16))
+        lottery_number_label = ctk.CTkLabel(greyframebg, text="หมายเลขลอตเตอรี่ที่ถูกรางวัล", font=('Kanit Regular', 16))
         lottery_number_label.place(x=100, y=100)
 
-        self.lottery_number_entry = ctk.CTkEntry(self.greyframebg, width=300)
-        self.lottery_number_entry.place(x=350, y=100)
+        self.lottery_prize_number_entry = ctk.CTkEntry(greyframebg, width=300)
+        self.lottery_prize_number_entry.place(x=350, y=100)
 
-        draw_date_label = ctk.CTkLabel(self.greyframebg, text="วันที่ประกาศรางวัล", font=('Kanit Regular', 16))
+        draw_date_label = ctk.CTkLabel(greyframebg, text="วันที่ประกาศรางวัล", font=('Kanit Regular', 16))
         draw_date_label.place(x=100, y=150)
 
-        self.draw_date_entry_day = ttk.Combobox(self.greyframebg, values=["1", "16"], width=5, state="readonly")
+        self.draw_date_entry_day = ttk.Combobox(greyframebg, values=["1", "16"], width=5, state="readonly")
         self.draw_date_entry_day.place(x=350, y=150)
         
-        self.draw_date_entry_month = ttk.Combobox(self.greyframebg, values=[
+        self.draw_date_entry_month = ttk.Combobox(greyframebg, values=[
             "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
             "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
         ], width=15, state="readonly")
         self.draw_date_entry_month.place(x=420, y=150)
 
         current_year = datetime.now().year
-        self.draw_date_entry_year = ttk.Combobox(self.greyframebg, values=list(range(current_year, current_year +11)), width=6, state="readonly")
+        self.draw_date_entry_year = ttk.Combobox(greyframebg, values=list(range(current_year-1, current_year +11)), width=6, state="readonly")
         self.draw_date_entry_year.place(x=560, y=150)
 
-        prize_type_label = ctk.CTkLabel(self.greyframebg, text="ประเภทรางวัล", font=('Kanit Regular', 16))
+        prize_type_label = ctk.CTkLabel(greyframebg, text="ประเภทรางวัล", font=('Kanit Regular', 16))
         prize_type_label.place(x=100, y=200)
 
-        self.prize_type_entry = ttk.Combobox(self.greyframebg, values=["รางวัลที่ 1","รางวัลที่ 2","รางวัลที่ 3", "รางวัลที่ 4", "รางวัลที่ 5", 
+        self.prize_type_entry = ttk.Combobox(greyframebg, values=["รางวัลที่ 1","รางวัลที่ 2","รางวัลที่ 3", "รางวัลที่ 4", "รางวัลที่ 5", 
                                                                        "รางวัลข้างเคียงรางวัลที่หนึ่ง", "รางวัลเลขหน้า 3 ตัว เสี่ยง 2 ครั้ง", 
                                                                        "รางวัลเลขท้าย 3 ตัว เสี่ยง 2 ครั้ง", "รางวัลเลขท้าย 2 ตัว เสี่ยง 1 ครั้ง"],width=40)
         self.prize_type_entry.place(x=350, y=200)
 
-        prize_amount_label = ctk.CTkLabel(self.greyframebg, text="จำนวนเงินรางวัล", font=('Kanit Regular', 16))
+        prize_amount_label = ctk.CTkLabel(greyframebg, text="จำนวนเงินรางวัล", font=('Kanit Regular', 16))
         prize_amount_label.place(x=100, y=250)
 
-        self.prize_amount_entry = ctk.CTkEntry(self.greyframebg, width=300)
+        self.prize_amount_entry = ctk.CTkEntry(greyframebg, width=300)
         self.prize_amount_entry.place(x=350, y=250)
 
-        save_btn = ctk.CTkButton(self.greyframebg, text="บันทึกผลการจับสลาก", font=('Kanit Regular', 16), fg_color='black', command=self.save_winning_lottery)
+        save_btn = ctk.CTkButton(greyframebg, text="บันทึกผลการจับสลาก", font=('Kanit Regular', 16), fg_color='black', command=self.save_winning_lottery)
         save_btn.place(x=400, y=450)
 
     def save_winning_lottery(self):
-        lottery_number = self.lottery_number_entry.get()
+        lottery_number = self.lottery_prize_number_entry.get()
         prize_type = self.prize_type_entry.get()
         draw_date_day = self.draw_date_entry_day.get()
         draw_date_month = self.draw_date_entry_month.get()
@@ -3216,15 +3499,498 @@ class main:
 
         print("บันทึกผลการจับสลากเรียบร้อยแล้ว!")
 
-
     def clear_add_prize_fields(self):
         self.draw_date_entry_day.set("")  
         self.draw_date_entry_month.set("") 
         self.draw_date_entry_year.set("")  
 
-        self.lottery_type_entry.delete(0, 'end')
-        self.lottery_number_entry.delete(0, 'end')
-        self.prize_amount_entry.delete(0, 'end')   
+        self.prize_type_entry.delete(0, 'end')
+        self.lottery_prize_number_entry.delete(0, 'end')
+        self.prize_amount_entry.delete(0, 'end')
+
+    def manage_save_admin_page(self):
+        self.clear_admin_main_con() 
+        admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
+        admin_container.place(x=100, y=0, relwidth=1, relheight=1)
+
+        whiteframebg = ctk.CTkFrame(admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        whiteframebg.place(x=50, y=50) 
+
+        text_header = ctk.CTkLabel(whiteframebg, text="ดูข้อมูลตู้เซฟของลูกค้า", font=('Kanit Regular', 20))
+        text_header.place(x=280, y=10)
+
+        search_frame = ctk.CTkFrame(whiteframebg, fg_color="#fbf5f5")  
+        search_frame.place(x=180, y=50)
+
+        text_search = ctk.CTkLabel(search_frame, text="ค้นหารายการ", font=('Kanit Regular', 16))
+        text_search.grid(row=0, column=0, padx=10, pady=5)
+
+        search_entry = ctk.CTkEntry(search_frame, width=200)
+        search_entry.grid(row=0, column=1, padx=10, pady=5)
+
+        search_btn = ctk.CTkButton(search_frame, text="ค้นหา", font=('Kanit Regular', 16), fg_color='black', bg_color='#cfcfcf', command=self.search_save)
+        search_btn.grid(row=0, column=2, padx=10, pady=5)
+
+        frame = tk.Frame(whiteframebg)
+        frame.place(x=10, y=100, width=780, height=300)
+
+        vert_scrollbar = tk.Scrollbar(frame, orient="vertical")
+        vert_scrollbar.pack(side="right", fill="y")
+
+        horiz_scrollbar = tk.Scrollbar(frame, orient="horizontal")
+        horiz_scrollbar.pack(side="bottom", fill="x")
+
+        columns = ("ID", "Username", "Lottery Number", "Amount", "Price", "Status", "Order Code", "Win Prize", "Lottery Date")
+        self.save_tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=vert_scrollbar.set, xscrollcommand=horiz_scrollbar.set)
+
+        for col in columns:
+            self.save_tree.heading(col, text=col)
+            self.save_tree.column(col, width=100, minwidth=100, stretch=False)  
+
+        self.save_tree.pack(fill="both", expand=True)
+
+        vert_scrollbar.config(command=self.save_tree.yview)
+        horiz_scrollbar.config(command=self.save_tree.xview)
+        
+        edit_btn = ctk.CTkButton(whiteframebg, text="แก้ไข", font=('Kanit Regular', 16), fg_color='black', command=self.edit_save)
+        edit_btn.place(x=20, y=420)
+
+        delete_btn = ctk.CTkButton(whiteframebg, text="ลบข้อมูล", font=('Kanit Regular', 16), fg_color='black', command=self.delete_save)
+        delete_btn.place(x=180, y=420)
+
+        back_btn = ctk.CTkButton(whiteframebg, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.admin_page)
+        back_btn.place(x=650, y=420)
+
+        self.refresh_save_list()
+
+    def refresh_save_list(self):
+            self.connect_to_db()
+            for row in self.save_tree.get_children():
+                self.save_tree.delete(row)
+
+            self.c.execute('''
+                SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date
+                FROM save
+            ''')
+            rows = self.c.fetchall()
+
+            for row in rows:
+                self.save_tree.insert("", "end", values=row)
+
+            self.close_db()  
+
+        
+    def search_save(self):
+        self.connect_to_db()
+        search_value = self.search_entry.get()
+        for row in self.save_tree.get_children():
+            self.save_tree.delete(row)
+
+        query = """
+        SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date 
+        FROM save
+        WHERE username_save LIKE ?
+        OR num_lottery_save LIKE ?
+        OR amount_save LIKE ?
+        OR price_save LIKE ?
+        OR status_save LIKE ?
+        OR order_code LIKE ?
+        OR win_prize LIKE ?
+        """
+        self.c.execute(query, ('%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%', 
+                            '%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%'))
+        rows = self.c.fetchall()
+
+        for row in rows:
+            self.save_tree.insert("", "end", values=row)
+        self.close_db()
+        
+    def edit_save(self):
+        selected_item = self.save_tree.selection()
+        if not selected_item:
+            messagebox.showerror("ข้อผิดพลาด", "กรุณาเลือกรายการที่ต้องการแก้ไข")
+            return
+
+        selected_save = self.save_tree.item(selected_item, "values")
+        if not selected_save:
+            messagebox.showerror("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้")
+            return
+        
+        self.clear_admin_main_con()
+        self.admin_container_edit_save = ctk.CTkFrame(self.admin_store, width=1920, height=800, corner_radius=0, fg_color='white')  # Increased height
+        self.admin_container_edit_save.place(x=100, y=0, relwidth=1, relheight=1)
+
+        self.greyframebg_edit_save = ctk.CTkFrame(self.admin_container_edit_save, corner_radius=15, width=900, height=600, fg_color='#fbf5f5')  # Increased width and height
+        self.greyframebg_edit_save.place(x=50, y=50)
+
+        self.text_header_edit_save = ctk.CTkLabel(self.greyframebg_edit_save, text="แก้ไขข้อมูล", font=('Kanit Regular', 20))
+        self.text_header_edit_save.place(x=350, y=10)
+
+        user_order = selected_save[1]  
+        image_data = self.fetch_image_from_db(user_order)  
+
+        if image_data:
+            img = Image.open(io.BytesIO(image_data))
+            img.thumbnail((250, 550))  
+            self.img_tk = ImageTk.PhotoImage(img)
+
+            # สร้าง Label เพื่อแสดงภาพ
+            image_label = ctk.CTkLabel(self.greyframebg_edit_save, text='', image=self.img_tk)
+            image_label.place(x=40, y=70)
+
+        id_label = ctk.CTkLabel(self.greyframebg_edit_save, text="ID", font=('Kanit Regular', 16))
+        id_label.place(x=350, y=60)  
+        self.id_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=50)
+        self.id_save_entry.place(x=500, y=60)
+        self.id_save_entry.insert(0, selected_save[0])  
+
+        username_label = ctk.CTkLabel(self.greyframebg_edit_save, text="User", font=('Kanit Regular', 16))
+        username_label.place(x=575, y=60)  
+        self.username_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=140)
+        self.username_save_entry.place(x=630, y=60)
+        self.username_save_entry.insert(0, selected_save[1])  
+
+        lottery_number_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Lottery Number", font=('Kanit Regular', 16))
+        lottery_number_label.place(x=350, y=120)  
+        self.lottery_number_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
+        self.lottery_number_save_entry.place(x=500, y=120)
+        self.lottery_number_save_entry.insert(0, selected_save[2])
+
+        amount_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Amount", font=('Kanit Regular', 16))
+        amount_label.place(x=350, y=180)  
+        self.amount_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
+        self.amount_save_entry.place(x=500, y=180)
+        self.amount_save_entry.insert(0, selected_save[3])
+
+        price_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Price", font=('Kanit Regular', 16))
+        price_label.place(x=350, y=240)  
+        self.price_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
+        self.price_save_entry.place(x=500, y=240)
+        self.price_save_entry.insert(0, selected_save[4])
+
+        status_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Status", font=('Kanit Regular', 16))
+        status_label.place(x=350, y=300)  
+        self.status_combobox = ctk.CTkComboBox(self.greyframebg_edit_save, values=["ยังไม่ชำระ", "ชำระเงินแล้ว"], width=270)
+        self.status_combobox.place(x=500, y=300)
+        self.status_combobox.set(selected_save[5])
+
+        order_code_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Order Code", font=('Kanit Regular', 16))
+        order_code_label.place(x=350, y=360)  
+        self.order_code_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
+        self.order_code_save_entry.place(x=500, y=360)
+        self.order_code_save_entry.insert(0, selected_save[6])
+
+        win_prize_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Win Prize", font=('Kanit Regular', 16))
+        win_prize_label.place(x=350, y=420)  
+        self.win_prize_combobox = ctk.CTkComboBox(self.greyframebg_edit_save, values=[
+            "รอดำเนินการ","รอประกาศผล", "ไม่ถูกรางวัล","รางวัลที่ 1", "รางวัลที่ 2", "รางวัลที่ 3", "รางวัลที่ 4", "รางวัลที่ 5",
+            "รางวัลข้างเคียงรางวัลที่หนึ่ง", "รางวัลเลขหน้า 3 ตัว เสี่ยง 2 ครั้ง", 
+            "รางวัลเลขท้าย 3 ตัว เสี่ยง 2 ครั้ง", "รางวัลเลขท้าย 2 ตัว เสี่ยง 1 ครั้ง"
+        ], width=270)
+        self.win_prize_combobox.place(x=500, y=420)
+        self.win_prize_combobox.set(selected_save[7])
+
+        lottery_date_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Lottery Date", font=('Kanit Regular', 16))  # Adjusted label text
+        lottery_date_label.place(x=350, y=470)  # Adjusted vertical position
+        self.lottery_date_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
+        self.lottery_date_entry.place(x=500, y=470)
+        self.lottery_date_entry.insert(0, selected_save[8])
+
+        # ปุ่มยืนยันการแก้ไข
+        save_btn = ctk.CTkButton(self.greyframebg_edit_save, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.save_save_edit)
+        save_btn.place(x=350, y=520)
+
+        back_btn = ctk.CTkButton(self.greyframebg_edit_save, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.manage_save_admin_page)
+        back_btn.place(x=550, y=520)
+
+    def load_save_data_to_edit(self, selected_save):
+        self.id_save_entry.insert(0, selected_save[0])
+        self.username_save_entry.insert(0, selected_save[1])
+        self.lottery_number_save_entry.insert(0, selected_save[2])
+        self.amount_save_entry.insert(0, selected_save[3])
+        self.price_save_entry.insert(0, selected_save[4])
+        self.status_combobox.set(selected_save[5])
+        self.order_code_save_entry.insert(0, selected_save[6])
+        self.win_prize_combobox.set(selected_save[7])
+        self.lottery_date_entry.insert(0,selected_save[8])
+
+    def save_save_edit(self):
+        new_data = [
+            self.id_save_entry.get(),
+            self.username_save_entry.get(),
+            self.lottery_number_save_entry.get(),
+            self.amount_save_entry.get(),
+            self.price_save_entry.get(),
+            self.status_combobox.get(),
+            self.order_code_save_entry.get(),
+            self.win_prize_combobox.get(),
+            self.lottery_date_entry.get()
+        ]
+        
+        selected_item = self.save_tree.selection()
+        if not selected_item:
+            messagebox.showerror("ข้อผิดพลาด", "กรุณาเลือกรายการที่ต้องการแก้ไข")
+            return
+
+        self.save_tree.item(selected_item, values=new_data)
+
+        conn = sqlite3.connect('data.db')
+        cursor = conn.cursor()
+
+        # ดึง save_id จากแถวที่เลือกใน save_tree
+        save_id = new_data[0]
+        username = new_data[1]
+        num_lottery = new_data[2]
+        amount_save = new_data[3]
+        price_save = new_data[4]
+        status_save = new_data[5]
+        order_code = new_data[6]
+        win_prize = new_data[7]
+        lottery_date = new_data[8]
+
+        try:
+            if status_save in ("ชำระเงินแล้ว", "ยังไม่ชำระ"):
+                cursor.execute(''' 
+                    UPDATE save
+                    SET status_save=? 
+                    WHERE order_code=?
+                ''', (status_save, order_code))
+                conn.commit()
+
+            cursor.execute(''' 
+                UPDATE save 
+                SET username_save=?, num_lottery_save=?, amount_save=?, price_save=?, status_save=?, order_code=?, win_prize=?, lottery_date=? 
+                WHERE id=? 
+            ''', (username, num_lottery, amount_save, price_save, status_save, order_code, win_prize, lottery_date, save_id))
+            conn.commit()
+            
+        except Exception as e:
+            print(f"Error updating database: {e}")
+            messagebox.showerror("ข้อผิดพลาด", "เกิดข้อผิดพลาดในการบันทึกข้อมูล")
+        finally:
+            conn.close()
+
+        # ล้างข้อมูลหลังเซฟ
+        self.id_save_entry.delete(0, 'end')
+        self.username_save_entry.delete(0, 'end')
+        self.lottery_number_save_entry.delete(0, 'end')
+        self.amount_save_entry.delete(0, 'end')
+        self.price_save_entry.delete(0, 'end')
+        self.status_combobox.set("")
+        self.order_code_save_entry.delete(0, 'end')
+        self.win_prize_combobox.set("")
+        self.lottery_date_entry.delete(0, 'end')
+
+        self.refresh_save_list()
+
+        messagebox.showinfo("สำเร็จ", "ข้อมูลได้รับการบันทึกเรียบร้อยแล้ว")
+
+    def delete_save(self):
+        selected_item = self.save_tree.selection()
+        if not selected_item:
+            messagebox.showwarning("Warning", "กรุณาเลือกผู้ใช้ที่ต้องการลบ!")
+            return
+
+        save_id = self.save_tree.item(selected_item, 'values')[0]
+
+        confirm = messagebox.askyesno("Confirm", "คุณแน่ใจว่าจะลบข้อมูลนี้หรือไม่?")
+        if confirm:
+            conn = sqlite3.connect('data.db')
+            cursor = conn.cursor()
+
+            # loop อันที่เลือกทุกอัน
+            for selected_save in selected_item:
+                save_id = self.save_tree.item(selected_save, 'values')[0]
+                cursor.execute('DELETE FROM save WHERE id=?', (save_id,))
+            
+            conn.commit()
+            conn.close()
+
+            # ลบออกจากตาราง
+            for selected_save in selected_item:
+                self.save_tree.delete(selected_save)
+
+            # รีหน้าจอ
+            self.refresh_save_list()
+
+    def revenue_page(self):
+        self.clear_admin_main_con()
+        self.admin_container_revenue = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
+        self.admin_container_revenue.place(x=100, y=0, relwidth=1, relheight=1)
+
+        self.whiteframebg_revenue = ctk.CTkFrame(self.admin_container_revenue, corner_radius=15, width=900, height=500, fg_color='#fbf5f5')
+        self.whiteframebg_revenue.place(x=50,y=50)
+
+        now = datetime.now()
+        month_name = self.thai_months[now.month-1]  
+        current_date = self.get_thai_date()
+
+        # คำนวณยอดขายรวม
+        saled_total = self.calculate_saled_total()
+
+        heading_center = ctk.CTkLabel(self.whiteframebg_revenue, text=f"รายงานผลประกอบการประจำเดือน {month_name} ของ AllLottery", font=('Arial', 16, 'bold'))
+        heading_center.grid(row=0, column=0, columnspan=4, pady=10)
+
+        heading_left = ctk.CTkLabel(self.whiteframebg_revenue, text=f"ผู้พิมพ์: admin\n DATE: {current_date}", font=('Arial', 12))
+        heading_left.grid(row=1, column=0, padx=10, pady=5, sticky="w")
+
+        heading_right = ctk.CTkLabel(self.whiteframebg_revenue, text=f"ยอดรวม: {saled_total}", font=('Arial', 12))
+        heading_right.grid(row=1, column=3, padx=10, pady=5, sticky="e")
+
+        # ปรับขนาด scroll_canvas ให้พอดีกับกรอบ
+        self.scroll_canvas_revenue = tk.Canvas(self.whiteframebg_revenue, bg='white', highlightthickness=0, width=850, height=300)
+        self.scroll_canvas_revenue.grid(row=3, column=0, columnspan=4, pady=10, sticky="nsew")  
+
+        self.v_scrollbar = ctk.CTkScrollbar(self.whiteframebg_revenue, orientation='vertical', command=self.scroll_canvas_revenue.yview)
+        self.v_scrollbar.grid(row=3, column=4, sticky="ns")
+
+        self.h_scrollbar = ctk.CTkScrollbar(self.whiteframebg_revenue, orientation='horizontal', command=self.scroll_canvas_revenue.xview)
+        self.h_scrollbar.grid(row=4, column=0, columnspan=4, sticky="ew")
+
+        self.scroll_canvas_revenue.configure(yscrollcommand=self.v_scrollbar.set, xscrollcommand=self.h_scrollbar.set)
+
+        # สร้าง scrollable_frame ด้วยขนาดที่เหมาะสม
+        self.scrollable_frame_revenue = tk.Frame(self.scroll_canvas_revenue, bg='#ffffff', width=850, height=300)
+        self.scroll_canvas_revenue.create_window((0, 0), window=self.scrollable_frame_revenue, anchor='nw')
+
+        # ปรับ scrollregion ให้ครอบคลุมพื้นที่ทั้งหมดของ scrollable_frame
+        self.scrollable_frame_revenue.bind("<Configure>", lambda e: self.scroll_canvas_revenue.configure(scrollregion=self.scroll_canvas_revenue.bbox("all")))
+        
+        # ฟังก์ชันเลื่อนด้วยเมาส์และคีย์บอร์ด
+        self.scroll_canvas_revenue.bind_all("<MouseWheel>", self.on_mouse_scroll)
+        self.scroll_canvas_revenue.bind_all("<Shift-MouseWheel>", self.on_horizontal_scroll)  # Shift+Scroll สำหรับแนวนอน
+        self.scroll_canvas_revenue.bind_all("<Up>", self.on_arrow_scroll)
+        self.scroll_canvas_revenue.bind_all("<Down>", self.on_arrow_scroll)
+        self.scroll_canvas_revenue.bind_all("<Left>", self.on_arrow_scroll)
+        self.scroll_canvas_revenue.bind_all("<Right>", self.on_arrow_scroll)    
+
+        conn = sqlite3.connect('data.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM revenue_report')
+        rows = cursor.fetchall()
+
+        header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price']
+        for col, header in enumerate(header_labels):
+            header_label = ctk.CTkLabel(self.scrollable_frame_revenue, text=header, font=('Arial', 12, 'bold'), width=120)
+            header_label.grid(row=0, column=col, padx=10, pady=5)
+
+        for row_index, row in enumerate(rows, start=1):  
+            for col_index, value in enumerate(row):
+                cell_label = ctk.CTkLabel(self.scrollable_frame_revenue, text=str(value), font=('Arial', 10), width=120)
+                cell_label.grid(row=row_index, column=col_index, padx=10, pady=5)
+
+        conn.close()
+
+        export_btn = ctk.CTkButton(self.whiteframebg_revenue, text="นำออกเป็น pdf", font=('Kanit Regular', 16), fg_color='black', command=self.export_revenue_pdf)
+        export_btn.grid(row=5, column=0, columnspan=4, pady=20)  
+
+
+    def calculate_saled_total(self):
+        total = 0
+        conn = sqlite3.connect('data.db')  
+        cursor = conn.cursor()
+        cursor.execute('SELECT total_price FROM revenue_report')  
+        rows = cursor.fetchall()
+
+        for row in rows:
+            total += row[0]  
+
+        conn.close()
+        return f"฿{total:,.2f}"  
+
+    def export_revenue_pdf(self):
+        # หาลง angsananew
+        pdfmetrics.registerFont(TTFont('AngsanaNew', r'C:\Windows\Fonts\ANGSANA.ttc'))
+
+        # ที่อยู่ไฟล์
+        file_path = f"D:/download/revenue_{self.month}.pdf"
+
+        # ตรวจว่าซ้ำไหม
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+
+        # สร้าง pdf
+        pdf = SimpleDocTemplate(file_path, pagesize=letter) # ขนาดกระดาษ Letter 8.5 นิ้ว × 11 นิ้ว
+
+        # เชื่อม database
+        conn = sqlite3.connect('data.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM revenue_report')
+        rows = cursor.fetchall()
+
+        # นำเข้าวันปัจจุบัน
+        now = datetime.now()
+        month_name = self.thai_months[now.month - 1]  #เดือนไทย
+        current_date = self.get_thai_date()  # เอาวันเดือนปีที่จัดไว้ใน get_that_date มาใช้
+
+        # คำนวณ total sale
+        saled_total = self.calculate_saled_total()
+       
+        # จัดหัวกระดาษ
+        heading_center = Paragraph(
+            f"รายงานผลประกอบการประจำเดือน {month_name}<br/>ของ AllLottery",
+            ParagraphStyle(name='CenterHeading', fontName='AngsanaNew', fontSize=16, alignment=1, leading=24, spaceAfter=6) # alignment=1 (กลาง) ระยะ 24 pixel ห่าง 6
+        )
+        heading_left = Paragraph(f"ผู้พิมพ์: admin<br/>PRINT DATE: {current_date}", ParagraphStyle(name='LeftHeading', fontName='AngsanaNew', fontSize=12))
+        heading_right = Paragraph(f"ยอดรวม: {saled_total} บาท", ParagraphStyle(name='RightHeading', fontName='AngsanaNew', fontSize=12))
+
+        # จัดวางในหัวกระดาษ
+        header_data = [[heading_left, heading_right]]  # สร้างข้อมูลในตาราง 
+        header_table = Table(header_data, colWidths=[300, 100])  
+
+        # ปรับแต่ง TableStyle
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),  # จัดแนวตั้งให้ชิดด้านบน แถว 0 คอลัม0 ถึงตำแหน่ง -1,-1 ท้าย
+            ('FONTNAME', (0, 0), (-1, -1), 'AngsanaNew'),  # ฟอนต์
+            ('FONTSIZE', (0, 0), (-1, -1), 12),  # ขนาดฟอนต์
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),  # เพิ่ม padding ด้านล่างห่าง 6
+            ('TOPPADDING', (0, 0), (-1, 0), 6),  # เพิ่ม padding ด้านบนห่าง 6
+        ]))
+
+        # สร้างหัวตาราง
+        header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price']
+        data = [header_labels]
+
+        # นำข้อมูลมาเก็บ list
+        for row in rows:
+            data.append([
+                row[0],  # ID
+                row[1],  # Order Code
+                row[2],  # Lottery ID
+                f"{row[3]:,.2f}",  # Price 
+                f"{row[4]:,.2f}",  # Amount 
+                row[5],  # Lottery Date
+                f"{row[6]:,.2f}",  # Total Price 
+            ])
+        conn.close()
+
+        # ตารางเก็บข้อมูล
+        table = Table(data, colWidths=[50, 80, 80, 80, 80, 100, 100])  # ปรับขนาดความกว้างตาราง
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#DAE9F7')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'), # จัดขนาดเป็น center ตรงแถว 0 คอ 0 ถึง แถวท้าย คอท้าย
+            ('ALIGN', (2, 1), (2, -1), 'CENTER'),
+            ('ALIGN', (3, 1), (3, -1), 'CENTER'),
+            ('ALIGN', (4, 1), (4, -1), 'CENTER'),
+            ('ALIGN', (5, 1), (5, -1), 'CENTER'),
+            ('ALIGN', (6, 1), (6, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), 'AngsanaNew'),
+            ('FONTSIZE', (0, 0), (-1, -1), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black), # เส้นกริดหนา 1 สีดำ
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ]))
+
+        # สร้างไฟล์ pdf
+        pdf.build([heading_center, header_table, table])
+        print(f"รายงานถูกสร้างเรียบร้อย: {file_path}")
+
+        # เปิดไฟล์ pdf
+        try:
+            os.startfile(file_path)
+        except Exception as e:
+            print(f"ไม่สามารถเปิดไฟล์ PDF ได้: {e}")
+      
 
 if __name__ == "__main__":
     root = tk.Tk()
