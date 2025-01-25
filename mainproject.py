@@ -28,6 +28,7 @@ from reportlab.lib.colors import HexColor
 from tkinter import filedialog
 import os
 
+
 class main:
     def __init__(self, root):
         self.root = root
@@ -122,7 +123,7 @@ class main:
                 )''')
             self.conn.commit()
             
-            self.c.execute('''CREATE TABLE IF NOT EXISTS  code_order(
+            self.c.execute('''CREATE TABLE IF NOT EXISTS code_order(
                 id INTEGER PRIMARY KEY,
                 user_id TEXT NOT NULL,
                 code_key TEXT NOT NULL,
@@ -927,14 +928,14 @@ class main:
                         typelot_label.place(x=65, y=5)
 
                         # Combobox สำหรับจำนวน
-                        amount_selected = ctk.CTkComboBox(
+                        amount_combo = ctk.CTkComboBox(
                             frame_item,
                             values=[str(x) for x in range(1, amount_data + 1)],
                             width=50, height=23,
                             corner_radius=5, bg_color='#2b2b2b', fg_color='white',
                             text_color='#2b2b2b'
                         )
-                        amount_selected.place(x=12, y=148)
+                        amount_combo.place(x=12, y=148)
                         
                         # ปุ่มหยิบใส่ตะกร้า
                         cartPick_image = Image.open(r'D:\python_finalproject\img\icon\white\26.png')
@@ -952,9 +953,8 @@ class main:
                             bg_color='#2b2b2b',
                             fg_color='#2b2b2b',
                             hover_color='black',
-                            command=lambda n=num_lottery, i=img_data, p=price_data, t=typelot_data: self.add_cart(
-                                n, i, amount_selected.get(), p, t  # ดึงค่าจาก Combobox ตอนกดปุ่ม
-                            )
+                            command=lambda n=num_lottery, i=img_data, p=price_data, t=typelot_data, a=amount_combo.get
+                            : self.add_cart(n, i, a(), p, t)
                         )
                         pick_btn.place(x=70, y=145)
                         
@@ -994,47 +994,44 @@ class main:
 
             if order:
                 # อัปเดตจำนวนในตะกร้า
-                current_amount = order[4]
+                current_amount = order[4]  # amount_orders
                 print(f"Current amount in cart: {current_amount}")
                 new_amount = current_amount + amount
-
-                if new_amount > available_amount:
-                    tkinter.messagebox.showwarning("Warning", "จำนวนในตะกร้าเกินกว่าสต็อกที่มีอยู่!")
-                    return
-
+                
                 price_order = price_data * new_amount
                 print(f"Updating cart with new amount: {new_amount}, new price: {price_order}")
 
-                self.c.execute('''
-                    UPDATE orders 
-                    SET img_lottery_orders = ?, 
-                        amount_orders = ?, 
-                        price_orders = ?, 
-                        cash = ?, 
-                        status = ?
-                    WHERE orders_lottery_num = ? AND User_orders = ?
-                ''', (img_data, new_amount, price_order, 0, 'ยังไม่ชำระ', num_lottery, self.username))
+                self.c.execute('''UPDATE orders 
+                                    SET img_lottery_orders = ?, 
+                                        amount_orders = ?, 
+                                        price_orders = ?, 
+                                        cash = ?, 
+                                        status = ?
+                                    WHERE orders_lottery_num = ? AND User_orders = ?''',
+                                (img_data, new_amount, price_order, 0, 'ยังไม่ชำระ', num_lottery, self.username))
+
             else:
                 # เพิ่มคำสั่งซื้อใหม่
                 self.c.execute('SELECT lottery_date FROM lottery WHERE num_id = ?', (num_lottery,))
                 lottery_date = self.c.fetchone()[0] if lottery else None
 
                 print(f"Adding new item to cart: amount={amount}, price={price_data * amount}")
-                self.c.execute('''
-                    INSERT INTO orders (User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status, type_lottery, lottery_date) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (self.username, num_lottery, img_data, amount, price_data, 0, 'ยังไม่ชำระ', typelot_data, lottery_date))
+                self.c.execute('''INSERT INTO orders 
+                                    (User_orders, orders_lottery_num, img_lottery_orders, amount_orders, price_orders, cash, status, type_lottery, lottery_date) 
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                                (self.username, num_lottery, img_data, amount, price_data * amount, 0, 'ยังไม่ชำระ', typelot_data, lottery_date))
 
             # ลดจำนวนในสต็อก
             remaining_amount = available_amount - amount
 
-            self.c.execute('''
-                UPDATE lottery
-                SET amount = ? 
-                WHERE num_id = ?
-            ''', (remaining_amount, num_lottery))
+            self.c.execute('''UPDATE lottery
+                                SET amount = ? 
+                                WHERE num_id = ?''',
+                            (remaining_amount, num_lottery))
+
             if remaining_amount == 0:
                 self.c.execute('DELETE FROM lottery WHERE num_id = ?', (num_lottery,))
+
             self.conn.commit()
 
             # รีเฟรชหน้า
@@ -1045,7 +1042,7 @@ class main:
             print(f"Error adding to cart: {e}")
         finally:
             self.conn.close()
-
+            
     def cart_page(self):
         global cart_order_con
         self.clear_main_con()
@@ -1113,7 +1110,7 @@ class main:
             # แสดงรายการสินค้าในตะกร้า
             for i, order in enumerate(orders_data):
                 username_data, num_lottery, img_lot, amount, price, cash, status, type_lot, lottery_date = order
-                self.total_price += float(price*amount)
+                self.total_price += float(price)
 
 
                 # โหลดและแสดงภาพลอตเตอรี่
@@ -1163,7 +1160,7 @@ class main:
                                             text_color='#cfcfcf')
                 amount_label.grid(row=0, column=2, padx=2, sticky='w')
                 
-                price_label = ctk.CTkLabel(orders_list_con, text=f'{price*amount:,.2f} บาท',
+                price_label = ctk.CTkLabel(orders_list_con, text=f'{price:,.2f} บาท',
                                             font=('Prompt', 16),
                                             text_color='black')
                 price_label.grid(row=0, column=3, padx=5, sticky='e')
@@ -1286,9 +1283,10 @@ class main:
             lottery_date = order[8]  
             num_lottery = order[1]  
             type_lottery = order[7]  
-            price = order[4] 
+            price_total = order[4] 
             amount = order[3] 
             img_lottery = order[2]  
+            price = price_total/amount
 
             # ตรวจสอบว่าลอตเตอรี่มีอยู่ในสต็อกหรือไม่
             self.c.execute('SELECT amount FROM lottery WHERE num_id = ?', (num_lottery,))
@@ -3417,7 +3415,7 @@ class main:
 
     def clear_add_lottery_fields(self):
         self.lottery_number_entry.delete(0, tk.END)
-        self.lottery_type_entry.delete(0, tk.END)
+        self.lottery_type_entry.set("")
         self.amount_entry.delete(0, tk.END)
         self.price_entry.delete(0, tk.END) 
 
