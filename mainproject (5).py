@@ -3772,11 +3772,11 @@ class main:
 
     def revenue_page(self):
         self.clear_admin_main_con()
-        self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
-        self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
+        self.admin_container_revenue = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
+        self.admin_container_revenue.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.whiteframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=1200, height=800, fg_color='#fbf5f5')  
-        self.whiteframebg.place(x=50, y=50) 
+        self.whiteframebg_revenue = ctk.CTkFrame(self.admin_container_revenue, corner_radius=15, width=900, height=500, fg_color='#fbf5f5')
+        self.whiteframebg_revenue.place(x=50,y=50)
 
         now = datetime.now()
         month_name = self.thai_months[now.month-1]  
@@ -3785,38 +3785,41 @@ class main:
         # คำนวณยอดขายรวม
         saled_total = self.calculate_saled_total()
 
-        heading_center = ctk.CTkLabel(self.whiteframebg, text=f"รายงานผลประกอบการประจำเดือน {month_name} ของ AllLottery", font=('Arial', 16, 'bold'))
+        heading_center = ctk.CTkLabel(self.whiteframebg_revenue, text=f"รายงานผลประกอบการประจำเดือน {month_name} ของ AllLottery", font=('Arial', 16, 'bold'))
         heading_center.grid(row=0, column=0, columnspan=4, pady=10)
 
-        heading_left = ctk.CTkLabel(self.whiteframebg, text=f"ผู้พิมพ์: admin\n DATE: {current_date}", font=('Arial', 12))
+        heading_left = ctk.CTkLabel(self.whiteframebg_revenue, text=f"ผู้พิมพ์: admin\n DATE: {current_date}", font=('Arial', 12))
         heading_left.grid(row=1, column=0, padx=10, pady=5, sticky="w")
 
-        heading_right = ctk.CTkLabel(self.whiteframebg, text=f"SALED TOTAL: {saled_total}", font=('Arial', 12))
+        heading_right = ctk.CTkLabel(self.whiteframebg_revenue, text=f"SALED TOTAL: {saled_total}", font=('Arial', 12))
         heading_right.grid(row=1, column=3, padx=10, pady=5, sticky="e")
 
-        self.scroll_canvas = tk.Canvas(self.whiteframebg, bg='white', highlightthickness=0)
-        self.scroll_canvas.grid(row=3, column=0, columnspan=4, pady=20)
+        # ปรับขนาด scroll_canvas ให้พอดีกับกรอบ
+        self.scroll_canvas_revenue = tk.Canvas(self.whiteframebg_revenue, bg='white', highlightthickness=0, width=850, height=300)
+        self.scroll_canvas_revenue.grid(row=3, column=0, columnspan=4, pady=10, sticky="nsew")  # sticky เพื่อให้ขยายตามกรอบ
 
-        self.v_scrollbar = ctk.CTkScrollbar(self.whiteframebg, orientation='vertical', command=self.scroll_canvas.yview)
+        self.v_scrollbar = ctk.CTkScrollbar(self.whiteframebg_revenue, orientation='vertical', command=self.scroll_canvas_revenue.yview)
         self.v_scrollbar.grid(row=3, column=4, sticky="ns")
-        self.scroll_canvas.configure(yscrollcommand=self.v_scrollbar.set)
 
-    
-        self.h_scrollbar = ctk.CTkScrollbar(self.whiteframebg, orientation='horizontal', command=self.scroll_canvas.xview)
+        self.h_scrollbar = ctk.CTkScrollbar(self.whiteframebg_revenue, orientation='horizontal', command=self.scroll_canvas_revenue.xview)
         self.h_scrollbar.grid(row=4, column=0, columnspan=4, sticky="ew")
+
+        self.scroll_canvas_revenue.configure(yscrollcommand=self.v_scrollbar.set, xscrollcommand=self.h_scrollbar.set)
+
+        # สร้าง scrollable_frame ด้วยขนาดที่เหมาะสม
+        self.scrollable_frame_revenue = tk.Frame(self.scroll_canvas_revenue, bg='#ffffff', width=850, height=300)
+        self.scroll_canvas_revenue.create_window((0, 0), window=self.scrollable_frame_revenue, anchor='nw')
+
+        # ปรับ scrollregion ให้ครอบคลุมพื้นที่ทั้งหมดของ scrollable_frame
+        self.scrollable_frame_revenue.bind("<Configure>", lambda e: self.scroll_canvas_revenue.configure(scrollregion=self.scroll_canvas_revenue.bbox("all")))
         
-
-        self.scrollable_frame = tk.Frame(self.scroll_canvas, bg='#ffffff', width=1150)
-        self.scroll_canvas.create_window((0, 0), window=self.scrollable_frame, anchor='nw')
-
-        self.scrollable_frame.bind("<Configure>", lambda e: self.scroll_canvas.configure(scrollregion=self.scroll_canvas.bbox("all")))
-
-        self.scroll_canvas.bind_all("<MouseWheel>", self.on_mouse_scroll)  
-        self.scroll_canvas.bind_all("<Shift-MouseWheel>", self.on_horizontal_scroll)  
-        self.scroll_canvas.bind_all("<Up>", self.on_arrow_scroll)        
-        self.scroll_canvas.bind_all("<Down>", self.on_arrow_scroll)      
-        self.scroll_canvas.bind_all("<Left>", self.on_arrow_scroll)       
-        self.scroll_canvas.bind_all("<Right>", self.on_arrow_scroll)      
+        # ฟังก์ชันเลื่อนด้วยเมาส์และคีย์บอร์ด
+        self.scroll_canvas_revenue.bind_all("<MouseWheel>", self.on_mouse_scroll)
+        self.scroll_canvas_revenue.bind_all("<Shift-MouseWheel>", self.on_horizontal_scroll)  # Shift+Scroll สำหรับแนวนอน
+        self.scroll_canvas_revenue.bind_all("<Up>", self.on_arrow_scroll)
+        self.scroll_canvas_revenue.bind_all("<Down>", self.on_arrow_scroll)
+        self.scroll_canvas_revenue.bind_all("<Left>", self.on_arrow_scroll)
+        self.scroll_canvas_revenue.bind_all("<Right>", self.on_arrow_scroll)    
 
         conn = sqlite3.connect('data.db')
         cursor = conn.cursor()
@@ -3825,17 +3828,17 @@ class main:
 
         header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price']
         for col, header in enumerate(header_labels):
-            header_label = ctk.CTkLabel(self.scrollable_frame, text=header, font=('Arial', 12, 'bold'), width=120)
+            header_label = ctk.CTkLabel(self.scrollable_frame_revenue, text=header, font=('Arial', 12, 'bold'), width=120)
             header_label.grid(row=0, column=col, padx=10, pady=5)
 
         for row_index, row in enumerate(rows, start=1):  
             for col_index, value in enumerate(row):
-                cell_label = ctk.CTkLabel(self.scrollable_frame, text=str(value), font=('Arial', 10), width=120)
+                cell_label = ctk.CTkLabel(self.scrollable_frame_revenue, text=str(value), font=('Arial', 10), width=120)
                 cell_label.grid(row=row_index, column=col_index, padx=10, pady=5)
 
         conn.close()
 
-        export_btn = ctk.CTkButton(self.whiteframebg, text="นำออกเป็น pdf", font=('Kanit Regular', 16), fg_color='black', command=self.export_revenue_pdf)
+        export_btn = ctk.CTkButton(self.whiteframebg_revenue, text="นำออกเป็น pdf", font=('Kanit Regular', 16), fg_color='black', command=self.export_revenue_pdf)
         export_btn.grid(row=5, column=0, columnspan=4, pady=20)  # จัดให้อยู่ในแถวสุดท้าย (row=5) ของกริด
 
 
