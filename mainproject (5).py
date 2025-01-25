@@ -1534,7 +1534,6 @@ class main:
                         existing_data = self.c.fetchone()
                         # ถ้าพบว่า order_code นี้มีอยู่แล้ว ให้ข้ามการบันทึก
                         if existing_data:
-                            print(f"{order_code} เข้า database แล้ว")
                             self.conn.close()
                         else:
                             # ถ้าไม่พบข้อมูล ให้ทำการบันทึกใหม่
@@ -1649,24 +1648,24 @@ class main:
         c.setFont("AngsanaNew", 18)  # ใช้ฟอนต์ที่ลงทะเบียน
 
         # ข้อมูลที่จะแสดงใน PDF
-        total_price = sum(price for (num_lottery, img_lot, amount, price, status, order_code_data) in save_data if order_code == order_code_data)
+        total_price = sum(price for (num_lottery, img_lot, amount, price, status, order_code_data, lottery_date) in save_data if order_code == order_code_data)
 
         # ส่วนหัวของใบเสร็จ
-        c.drawString(250, 750, "ใบเสร็จชำระเงิน")
+        c.drawString(200, 750, "ใบเสร็จชำระเงิน")
 
         # ใส่หมายเลขคำสั่งซื้อและยอดรวม
         c.drawString(100, 730, f"หมายเลขคำสั่งซื้อ: {order_code}")
-        c.drawString(100, 710, f"ยอดรวม: {total_price:,.2f} บาท")
-        c.drawString(100, 690, "จำนวน          ล็อตเตอรี่หมายเลข          ราคา")  
-        c.drawString(100, 670, "---------------------------------------------------------------")
-        y_position = 650
+        c.drawString(100, 710, "จำนวน          ล็อตเตอรี่หมายเลข          ราคา")  
+        c.drawString(100, 690, "---------------------------------------------------------------")
+        y_position = 670
         for save in save_data:
-            num_lottery, img_lot, amount, price, status, order_code_data = save
+            num_lottery, img_lot, amount, price, status, order_code_data, lottery_date = save
             if order_code == order_code_data:
                 c.drawString(100, y_position, f"{amount}                    {num_lottery}                            {price:,.2f} บาท")
                 y_position -= 20 
         c.drawString(100, y_position-20, "---------------------------------------------------------------")
-        c.drawString(100, y_position-40, f"ยอดรวม: {total_price:,.2f} บาท")
+        c.drawString(250, y_position-40, f"ยอดรวม: {total_price:,.2f} บาท")
+        c.drawString(250, y_position-60, f"ALLLOTTERY")
         c.save()
         print(f"ใบเสร็จถูกสร้างเรียบร้อย: {file_path}")
 
@@ -2068,11 +2067,7 @@ class main:
             tkinter.messagebox.showinfo(title, message)
         elif msg_type == "error":
             tkinter.messagebox.showerror(title, message)
-
-
-    def view_order_history(self):
-        pass
-    
+    '''
     def lottery_win_menu(self):
         self.clear_main_con()
         self.main_container()
@@ -2161,7 +2156,7 @@ class main:
             entry.delete(0, "end")
         for result_label in self.result_labels:
             result_label.configure(text="", fg_color="transparent")
-            
+    '''        
             
     def admin_menu_ui(self):
         self.root.destroy()  # ปิดหน้าต่างหลัก
@@ -3057,10 +3052,10 @@ class main:
         self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
         self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
-        self.greyframebg.place(x=50, y=50) 
+        greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        greyframebg.place(x=50, y=50) 
 
-        self.text_header = ctk.CTkLabel(self.greyframebg, text="ข้อมูลออร์เดอร์", font=('Kanit Regular', 20))
+        self.text_header = ctk.CTkLabel(greyframebg, text="ข้อมูลออร์เดอร์", font=('Kanit Regular', 20))
         self.text_header.place(x=300, y=10)
         
         user_order = selected_order[1]  
@@ -3071,53 +3066,53 @@ class main:
             img.thumbnail((250, 550))  
             
             self.img_tk = ImageTk.PhotoImage(img)  
-            image_label = ctk.CTkLabel(self.greyframebg, text='', image=self.img_tk)
+            image_label = ctk.CTkLabel(greyframebg, text='', image=self.img_tk)
             image_label.place(x=40, y=70)  
 
         # สร้าง Label และ Entry สำหรับข้อมูล
-        order_id_label = ctk.CTkLabel(self.greyframebg, text="ID", font=('Kanit Regular', 16))
+        order_id_label = ctk.CTkLabel(greyframebg, text="ID", font=('Kanit Regular', 16))
         order_id_label.place(x=350, y=70)
-        self.order_id_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.order_id_entry = ctk.CTkEntry(greyframebg, width=270)
         self.order_id_entry.place(x=500, y=70)
 
-        user_order_label = ctk.CTkLabel(self.greyframebg, text="User Order", font=('Kanit Regular', 16))
+        user_order_label = ctk.CTkLabel(greyframebg, text="User Order", font=('Kanit Regular', 16))
         user_order_label.place(x=350, y=120)
-        self.user_order_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.user_order_entry = ctk.CTkEntry(greyframebg, width=270)
         self.user_order_entry.place(x=500, y=120)
 
-        lottery_number_label = ctk.CTkLabel(self.greyframebg, text="Lottery Number", font=('Kanit Regular', 16))
+        lottery_number_label = ctk.CTkLabel(greyframebg, text="Lottery Number", font=('Kanit Regular', 16))
         lottery_number_label.place(x=350, y=170)
-        self.lottery_number_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.lottery_number_entry = ctk.CTkEntry(greyframebg, width=270)
         self.lottery_number_entry.place(x=500, y=170)
 
-        amount_label = ctk.CTkLabel(self.greyframebg, text="Amount", font=('Kanit Regular', 16))
+        amount_label = ctk.CTkLabel(greyframebg, text="Amount", font=('Kanit Regular', 16))
         amount_label.place(x=350, y=220)
-        self.amount_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.amount_entry = ctk.CTkEntry(greyframebg, width=270)
         self.amount_entry.place(x=500, y=220)
 
-        price_label = ctk.CTkLabel(self.greyframebg, text="Price", font=('Kanit Regular', 16))
+        price_label = ctk.CTkLabel(greyframebg, text="Price", font=('Kanit Regular', 16))
         price_label.place(x=350, y=270)
-        self.price_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.price_entry = ctk.CTkEntry(greyframebg, width=270)
         self.price_entry.place(x=500, y=270)
 
-        cash_label = ctk.CTkLabel(self.greyframebg, text="Cash", font=('Kanit Regular', 16))
+        cash_label = ctk.CTkLabel(greyframebg, text="Cash", font=('Kanit Regular', 16))
         cash_label.place(x=350, y=320)
-        self.cash_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.cash_entry = ctk.CTkEntry(greyframebg, width=270)
         self.cash_entry.place(x=500, y=320)
 
-        status_label = ctk.CTkLabel(self.greyframebg, text="Status", font=('Kanit Regular', 16))
+        status_label = ctk.CTkLabel(greyframebg, text="Status", font=('Kanit Regular', 16))
         status_label.place(x=350, y=370)
-        self.status_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.status_entry = ctk.CTkEntry(greyframebg, width=270)
         self.status_entry.place(x=500, y=370)
 
         # โหลดข้อมูลออร์เดอร์
         self.load_order_data_to_edit(selected_order)
 
         # ปุ่มยืนยันการแก้ไข
-        save_btn = ctk.CTkButton(self.greyframebg, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.save_order_edit)
+        save_btn = ctk.CTkButton(greyframebg, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.save_order_edit)
         save_btn.place(x=350, y=450)
 
-        back_btn = ctk.CTkButton(self.greyframebg, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.manage_order_admin_page)
+        back_btn = ctk.CTkButton(greyframebg, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.manage_order_admin_page)
         back_btn.place(x=550, y=450)
 
     def load_order_data_to_edit(self, order_data):
@@ -3244,69 +3239,69 @@ class main:
         self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
         self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
-        self.greyframebg.place(x=50, y=50) 
+        greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        greyframebg.place(x=50, y=50) 
 
-        self.text_header = ctk.CTkLabel(self.greyframebg, text="คลังลอตเตอรี่", font=('Kanit Regular', 20))
+        self.text_header = ctk.CTkLabel(greyframebg, text="คลังลอตเตอรี่", font=('Kanit Regular', 20))
         self.text_header.place(x=300, y=10)
 
-        lottery_number_label = ctk.CTkLabel(self.greyframebg, text="หมายเลขลอตเตอรี่", font=('Kanit Regular', 16))
+        lottery_number_label = ctk.CTkLabel(greyframebg, text="หมายเลขลอตเตอรี่", font=('Kanit Regular', 16))
         lottery_number_label.place(x=100, y=100)
 
-        self.lottery_number_entry = ctk.CTkEntry(self.greyframebg, width=300)
+        self.lottery_number_entry = ctk.CTkEntry(greyframebg, width=300)
         self.lottery_number_entry.place(x=300, y=100)
 
-        lottery_type_label = ctk.CTkLabel(self.greyframebg, text="ประเภทลอตเตอรรี่", font=('Kanit Regular', 16))
+        lottery_type_label = ctk.CTkLabel(greyframebg, text="ประเภทลอตเตอรรี่", font=('Kanit Regular', 16))
         lottery_type_label.place(x=100, y=150)
 
-        self.lottery_type_entry = ctk.CTkComboBox(self.greyframebg, values=["หวยเดี่ยว", "หวยชุด"], width=300, state="readonly")
+        self.lottery_type_entry = ctk.CTkComboBox(greyframebg, values=["หวยเดี่ยว", "หวยชุด"], width=300, state="readonly")
         self.lottery_type_entry.place(x=300, y=150)
 
-        amount_label = ctk.CTkLabel(self.greyframebg, text="จำนวน", font=('Kanit Regular', 16))
+        amount_label = ctk.CTkLabel(greyframebg, text="จำนวน", font=('Kanit Regular', 16))
         amount_label.place(x=100, y=200)
 
-        self.amount_entry = ctk.CTkEntry(self.greyframebg, width=300)
+        self.amount_entry = ctk.CTkEntry(greyframebg, width=300)
         self.amount_entry.place(x=300, y=200)
 
-        price_label = ctk.CTkLabel(self.greyframebg, text="ราคาต่อหน่วย", font=('Kanit Regular', 16))
+        price_label = ctk.CTkLabel(greyframebg, text="ราคาต่อหน่วย", font=('Kanit Regular', 16))
         price_label.place(x=100, y=250)
 
-        self.price_entry = ctk.CTkEntry(self.greyframebg, width=300)
+        self.price_entry = ctk.CTkEntry(greyframebg, width=300)
         self.price_entry.place(x=300, y=250)
         
         # งวด
-        lottery_date_label = ctk.CTkLabel(self.greyframebg, text="งวดของวันที่", font=('Kanit Regular', 16))
+        lottery_date_label = ctk.CTkLabel(greyframebg, text="งวดของวันที่", font=('Kanit Regular', 16))
         lottery_date_label.place(x=100, y=300)
 
-        self.lottery_date_entry_day = ttk.Combobox(self.greyframebg, values=["1", "16"], width=5, state="readonly")
+        self.lottery_date_entry_day = ttk.Combobox(greyframebg, values=["1", "16"], width=5, state="readonly")
         self.lottery_date_entry_day.place(x=350, y=300)
 
-        self.lottery_date_entry_month = ttk.Combobox(self.greyframebg, values=[
+        self.lottery_date_entry_month = ttk.Combobox(greyframebg, values=[
             "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
             "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
         ], width=15, state="readonly")
         self.lottery_date_entry_month.place(x=420, y=300)
 
         current_year = datetime.now().year
-        self.lottery_date_entry_year = ttk.Combobox(self.greyframebg, values=list(range(current_year-1, current_year + 11)), width=6, state="readonly")
+        self.lottery_date_entry_year = ttk.Combobox(greyframebg, values=list(range(current_year-1, current_year + 11)), width=6, state="readonly")
         self.lottery_date_entry_year.place(x=560, y=300)
 
         # เลือกไฟล์สลิป
-        self.select_label = ctk.CTkLabel(self.greyframebg, text='เลือกรูปลอตเตอรี่ : ', font=('Kanit Regular', 16))
+        self.select_label = ctk.CTkLabel(greyframebg, text='เลือกรูปลอตเตอรี่ : ', font=('Kanit Regular', 16))
         self.select_label.place(x=100, y=350)
         
-        self.select_con = ctk.CTkFrame(self.greyframebg, width=280, height=130, fg_color='white')
+        self.select_con = ctk.CTkFrame(greyframebg, width=280, height=130, fg_color='white')
         self.select_con.place(x=300, y=350)
         self.select_status = ctk.CTkLabel(self.select_con, text='', font=('Kanit Regular', 14))
         self.select_status.place(x=0, y=0)
         
-        self.select_file_btn = ctk.CTkButton(self.greyframebg, text='เลือกไฟล์', font=('Kanit Regular', 16), command=self.select_file)
+        self.select_file_btn = ctk.CTkButton(greyframebg, text='เลือกไฟล์', font=('Kanit Regular', 16), command=self.select_file)
         self.select_file_btn.place(x=600, y=350)
         
         self.file_path = None
 
         # ปุ่มบันทึก
-        save_btn = ctk.CTkButton(self.greyframebg, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.add_lottery)
+        save_btn = ctk.CTkButton(greyframebg, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.add_lottery)
         save_btn.place(x=600, y=450)
 
             
@@ -3401,49 +3396,49 @@ class main:
         self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
         self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
-        self.greyframebg.place(x=50, y=50) 
+        greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        greyframebg.place(x=50, y=50) 
 
-        self.text_header = ctk.CTkLabel(self.greyframebg, text="บันทึกผลการจับสลาก", font=('Kanit Regular', 20))
+        self.text_header = ctk.CTkLabel(greyframebg, text="บันทึกผลการจับสลาก", font=('Kanit Regular', 20))
         self.text_header.place(x=300, y=10)
 
-        lottery_number_label = ctk.CTkLabel(self.greyframebg, text="หมายเลขลอตเตอรี่ที่ถูกรางวัล", font=('Kanit Regular', 16))
+        lottery_number_label = ctk.CTkLabel(greyframebg, text="หมายเลขลอตเตอรี่ที่ถูกรางวัล", font=('Kanit Regular', 16))
         lottery_number_label.place(x=100, y=100)
 
-        self.lottery_prize_number_entry = ctk.CTkEntry(self.greyframebg, width=300)
+        self.lottery_prize_number_entry = ctk.CTkEntry(greyframebg, width=300)
         self.lottery_prize_number_entry.place(x=350, y=100)
 
-        draw_date_label = ctk.CTkLabel(self.greyframebg, text="วันที่ประกาศรางวัล", font=('Kanit Regular', 16))
+        draw_date_label = ctk.CTkLabel(greyframebg, text="วันที่ประกาศรางวัล", font=('Kanit Regular', 16))
         draw_date_label.place(x=100, y=150)
 
-        self.draw_date_entry_day = ttk.Combobox(self.greyframebg, values=["1", "16"], width=5, state="readonly")
+        self.draw_date_entry_day = ttk.Combobox(greyframebg, values=["1", "16"], width=5, state="readonly")
         self.draw_date_entry_day.place(x=350, y=150)
         
-        self.draw_date_entry_month = ttk.Combobox(self.greyframebg, values=[
+        self.draw_date_entry_month = ttk.Combobox(greyframebg, values=[
             "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
             "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
         ], width=15, state="readonly")
         self.draw_date_entry_month.place(x=420, y=150)
 
         current_year = datetime.now().year
-        self.draw_date_entry_year = ttk.Combobox(self.greyframebg, values=list(range(current_year-1, current_year +11)), width=6, state="readonly")
+        self.draw_date_entry_year = ttk.Combobox(greyframebg, values=list(range(current_year-1, current_year +11)), width=6, state="readonly")
         self.draw_date_entry_year.place(x=560, y=150)
 
-        prize_type_label = ctk.CTkLabel(self.greyframebg, text="ประเภทรางวัล", font=('Kanit Regular', 16))
+        prize_type_label = ctk.CTkLabel(greyframebg, text="ประเภทรางวัล", font=('Kanit Regular', 16))
         prize_type_label.place(x=100, y=200)
 
-        self.prize_type_entry = ttk.Combobox(self.greyframebg, values=["รางวัลที่ 1","รางวัลที่ 2","รางวัลที่ 3", "รางวัลที่ 4", "รางวัลที่ 5", 
+        self.prize_type_entry = ttk.Combobox(greyframebg, values=["รางวัลที่ 1","รางวัลที่ 2","รางวัลที่ 3", "รางวัลที่ 4", "รางวัลที่ 5", 
                                                                        "รางวัลข้างเคียงรางวัลที่หนึ่ง", "รางวัลเลขหน้า 3 ตัว เสี่ยง 2 ครั้ง", 
                                                                        "รางวัลเลขท้าย 3 ตัว เสี่ยง 2 ครั้ง", "รางวัลเลขท้าย 2 ตัว เสี่ยง 1 ครั้ง"],width=40)
         self.prize_type_entry.place(x=350, y=200)
 
-        prize_amount_label = ctk.CTkLabel(self.greyframebg, text="จำนวนเงินรางวัล", font=('Kanit Regular', 16))
+        prize_amount_label = ctk.CTkLabel(greyframebg, text="จำนวนเงินรางวัล", font=('Kanit Regular', 16))
         prize_amount_label.place(x=100, y=250)
 
-        self.prize_amount_entry = ctk.CTkEntry(self.greyframebg, width=300)
+        self.prize_amount_entry = ctk.CTkEntry(greyframebg, width=300)
         self.prize_amount_entry.place(x=350, y=250)
 
-        save_btn = ctk.CTkButton(self.greyframebg, text="บันทึกผลการจับสลาก", font=('Kanit Regular', 16), fg_color='black', command=self.save_winning_lottery)
+        save_btn = ctk.CTkButton(greyframebg, text="บันทึกผลการจับสลาก", font=('Kanit Regular', 16), fg_color='black', command=self.save_winning_lottery)
         save_btn.place(x=400, y=450)
 
     def save_winning_lottery(self):
@@ -3490,28 +3485,28 @@ class main:
 
     def manage_save_admin_page(self):
         self.clear_admin_main_con() 
-        self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
-        self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
+        admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
+        admin_container.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.whiteframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
-        self.whiteframebg.place(x=50, y=50) 
+        whiteframebg = ctk.CTkFrame(admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        whiteframebg.place(x=50, y=50) 
 
-        self.text_header = ctk.CTkLabel(self.whiteframebg, text="ดูข้อมูลตู้เซฟของลูกค้า", font=('Kanit Regular', 20))
-        self.text_header.place(x=280, y=10)
+        text_header = ctk.CTkLabel(whiteframebg, text="ดูข้อมูลตู้เซฟของลูกค้า", font=('Kanit Regular', 20))
+        text_header.place(x=280, y=10)
 
-        search_frame = ctk.CTkFrame(self.whiteframebg, fg_color="#fbf5f5")  
+        search_frame = ctk.CTkFrame(whiteframebg, fg_color="#fbf5f5")  
         search_frame.place(x=180, y=50)
 
-        self.text_search = ctk.CTkLabel(search_frame, text="ค้นหารายการ", font=('Kanit Regular', 16))
-        self.text_search.grid(row=0, column=0, padx=10, pady=5)
+        text_search = ctk.CTkLabel(search_frame, text="ค้นหารายการ", font=('Kanit Regular', 16))
+        text_search.grid(row=0, column=0, padx=10, pady=5)
 
-        self.search_entry = ctk.CTkEntry(search_frame, width=200)
-        self.search_entry.grid(row=0, column=1, padx=10, pady=5)
+        search_entry = ctk.CTkEntry(search_frame, width=200)
+        search_entry.grid(row=0, column=1, padx=10, pady=5)
 
-        self.search_btn = ctk.CTkButton(search_frame, text="ค้นหา", font=('Kanit Regular', 16), fg_color='black', bg_color='#cfcfcf', command=self.search_save)
-        self.search_btn.grid(row=0, column=2, padx=10, pady=5)
+        search_btn = ctk.CTkButton(search_frame, text="ค้นหา", font=('Kanit Regular', 16), fg_color='black', bg_color='#cfcfcf', command=self.search_save)
+        search_btn.grid(row=0, column=2, padx=10, pady=5)
 
-        frame = tk.Frame(self.whiteframebg)
+        frame = tk.Frame(whiteframebg)
         frame.place(x=10, y=100, width=780, height=300)
 
         vert_scrollbar = tk.Scrollbar(frame, orient="vertical")
@@ -3532,13 +3527,13 @@ class main:
         vert_scrollbar.config(command=self.save_tree.yview)
         horiz_scrollbar.config(command=self.save_tree.xview)
         
-        edit_btn = ctk.CTkButton(self.whiteframebg, text="แก้ไข", font=('Kanit Regular', 16), fg_color='black', command=self.edit_save)
+        edit_btn = ctk.CTkButton(whiteframebg, text="แก้ไข", font=('Kanit Regular', 16), fg_color='black', command=self.edit_save)
         edit_btn.place(x=20, y=420)
 
-        delete_btn = ctk.CTkButton(self.whiteframebg, text="ลบข้อมูล", font=('Kanit Regular', 16), fg_color='black', command=self.delete_save)
+        delete_btn = ctk.CTkButton(whiteframebg, text="ลบข้อมูล", font=('Kanit Regular', 16), fg_color='black', command=self.delete_save)
         delete_btn.place(x=180, y=420)
 
-        back_btn = ctk.CTkButton(self.whiteframebg, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.admin_page)
+        back_btn = ctk.CTkButton(whiteframebg, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.admin_page)
         back_btn.place(x=650, y=420)
 
         self.refresh_save_list()
@@ -3597,14 +3592,14 @@ class main:
             return
 
         self.clear_admin_main_con()
-        self.admin_container = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
-        self.admin_container.place(x=100, y=0, relwidth=1, relheight=1)
+        self.admin_container_edit_save = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
+        self.admin_container_edit_save.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.greyframebg = ctk.CTkFrame(self.admin_container, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
-        self.greyframebg.place(x=50, y=50) 
+        self.greyframebg_edit_save = ctk.CTkFrame(self.admin_container_edit_save, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
+        self.greyframebg_edit_save.place(x=50, y=50) 
 
-        self.text_header = ctk.CTkLabel(self.greyframebg, text="แก้ไขข้อมูล", font=('Kanit Regular', 20))
-        self.text_header.place(x=300, y=10)
+        self.text_header_edit_save = ctk.CTkLabel(self.greyframebg_edit_save, text="แก้ไขข้อมูล", font=('Kanit Regular', 20))
+        self.text_header_edit_save.place(x=300, y=10)
 
         user_order = selected_save[1]  
         image_data = self.fetch_image_from_db(user_order)  
@@ -3615,56 +3610,56 @@ class main:
             self.img_tk = ImageTk.PhotoImage(img)
             
             # สร้าง Label เพื่อแสดงภาพ
-            image_label = ctk.CTkLabel(self.greyframebg, text='', image=self.img_tk)
+            image_label = ctk.CTkLabel(self.greyframebg_edit_save, text='', image=self.img_tk)
             image_label.place(x=40, y=70)
 
-        username_label = ctk.CTkLabel(self.greyframebg, text="Username", font=('Kanit Regular', 16))
+        username_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Username", font=('Kanit Regular', 16))
         username_label.place(x=350, y=70)
-        self.username_save_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.username_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
         self.username_save_entry.place(x=500, y=70)
         self.username_save_entry.insert(0, selected_save[1])  
 
-        lottery_number_label = ctk.CTkLabel(self.greyframebg, text="Lottery Number", font=('Kanit Regular', 16))
+        lottery_number_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Lottery Number", font=('Kanit Regular', 16))
         lottery_number_label.place(x=350, y=120)
-        self.lottery_number_save_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.lottery_number_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
         self.lottery_number_save_entry.place(x=500, y=120)
         self.lottery_number_save_entry.insert(0, selected_save[2])
 
-        amount_label = ctk.CTkLabel(self.greyframebg, text="Amount", font=('Kanit Regular', 16))
+        amount_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Amount", font=('Kanit Regular', 16))
         amount_label.place(x=350, y=170)
-        self.amount_save_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.amount_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
         self.amount_save_entry.place(x=500, y=170)
         self.amount_save_entry.insert(0, selected_save[3])
 
-        price_label = ctk.CTkLabel(self.greyframebg, text="Price", font=('Kanit Regular', 16))
+        price_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Price", font=('Kanit Regular', 16))
         price_label.place(x=350, y=220)
-        self.price_save_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.price_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
         self.price_save_entry.place(x=500, y=220)
         self.price_save_entry.insert(0, selected_save[4])
 
-        status_label = ctk.CTkLabel(self.greyframebg, text="Status", font=('Kanit Regular', 16))
+        status_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Status", font=('Kanit Regular', 16))
         status_label.place(x=350, y=270)
-        self.status_combobox = ctk.CTkComboBox(self.greyframebg, values=["ยังไม่ชำระ","ชำระเงินแล้ว"], width=270)
+        self.status_combobox = ctk.CTkComboBox(self.greyframebg_edit_save, values=["ยังไม่ชำระ","ชำระเงินแล้ว"], width=270)
         self.status_combobox.place(x=500, y=270)
         self.status_combobox.set(selected_save[5])  
 
-        order_code_label = ctk.CTkLabel(self.greyframebg, text="Order Code", font=('Kanit Regular', 16))
+        order_code_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Order Code", font=('Kanit Regular', 16))
         order_code_label.place(x=350, y=320)
-        self.order_code_save_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.order_code_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
         self.order_code_save_entry.place(x=500, y=320)
         self.order_code_save_entry.insert(0, selected_save[6])
 
-        win_prize_label = ctk.CTkLabel(self.greyframebg, text="Win Prize", font=('Kanit Regular', 16))
+        win_prize_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Win Prize", font=('Kanit Regular', 16))
         win_prize_label.place(x=350, y=370)
-        self.win_prize_save_entry = ctk.CTkEntry(self.greyframebg, width=270)
+        self.win_prize_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
         self.win_prize_save_entry.place(x=500, y=370)
         self.win_prize_save_entry.insert(0, selected_save[7])
 
         # ปุ่มยืนยันการแก้ไข
-        save_btn = ctk.CTkButton(self.greyframebg, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.save_save_edit)
+        save_btn = ctk.CTkButton(self.greyframebg_edit_save, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.save_save_edit)
         save_btn.place(x=350, y=420)
 
-        back_btn = ctk.CTkButton(self.greyframebg, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.manage_save_admin_page)
+        back_btn = ctk.CTkButton(self.greyframebg_edit_save, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.manage_save_admin_page)
         back_btn.place(x=550, y=420)
 
     def load_save_data_to_edit(self, selected_save):
@@ -3721,7 +3716,7 @@ class main:
                 ''', (username, num_lottery, amount_save, price_save, status_save, order_code, win_prize, save_id))
         
             conn.commit()
-            print("Database updated successfully.")
+            
         except Exception as e:
             print(f"Error updating database: {e}")
             messagebox.showerror("ข้อผิดพลาด", "เกิดข้อผิดพลาดในการบันทึกข้อมูล")
@@ -3791,12 +3786,12 @@ class main:
         heading_left = ctk.CTkLabel(self.whiteframebg_revenue, text=f"ผู้พิมพ์: admin\n DATE: {current_date}", font=('Arial', 12))
         heading_left.grid(row=1, column=0, padx=10, pady=5, sticky="w")
 
-        heading_right = ctk.CTkLabel(self.whiteframebg_revenue, text=f"SALED TOTAL: {saled_total}", font=('Arial', 12))
+        heading_right = ctk.CTkLabel(self.whiteframebg_revenue, text=f"ยอดรวม: {saled_total}", font=('Arial', 12))
         heading_right.grid(row=1, column=3, padx=10, pady=5, sticky="e")
 
         # ปรับขนาด scroll_canvas ให้พอดีกับกรอบ
         self.scroll_canvas_revenue = tk.Canvas(self.whiteframebg_revenue, bg='white', highlightthickness=0, width=850, height=300)
-        self.scroll_canvas_revenue.grid(row=3, column=0, columnspan=4, pady=10, sticky="nsew")  # sticky เพื่อให้ขยายตามกรอบ
+        self.scroll_canvas_revenue.grid(row=3, column=0, columnspan=4, pady=10, sticky="nsew")  
 
         self.v_scrollbar = ctk.CTkScrollbar(self.whiteframebg_revenue, orientation='vertical', command=self.scroll_canvas_revenue.yview)
         self.v_scrollbar.grid(row=3, column=4, sticky="ns")
@@ -3839,7 +3834,7 @@ class main:
         conn.close()
 
         export_btn = ctk.CTkButton(self.whiteframebg_revenue, text="นำออกเป็น pdf", font=('Kanit Regular', 16), fg_color='black', command=self.export_revenue_pdf)
-        export_btn.grid(row=5, column=0, columnspan=4, pady=20)  # จัดให้อยู่ในแถวสุดท้าย (row=5) ของกริด
+        export_btn.grid(row=5, column=0, columnspan=4, pady=20)  
 
 
     def calculate_saled_total(self):
@@ -3856,92 +3851,93 @@ class main:
         return f"฿{total:,.2f}"  
 
     def export_revenue_pdf(self):
-        # Register AngsanaNew font
+        # หาลง angsananew
         pdfmetrics.registerFont(TTFont('AngsanaNew', r'C:\Windows\Fonts\ANGSANA.ttc'))
 
-        # Set file path for the PDF
+        # ที่อยู่ไฟล์
         file_path = f"D:/download/revenue_{self.month}.pdf"
 
-        # Check if the directory exists, create it if not
+        # ตรวจว่าซ้ำไหม
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
 
-        # Create the PDF
-        pdf = SimpleDocTemplate(file_path, pagesize=letter)
+        # สร้าง pdf
+        pdf = SimpleDocTemplate(file_path, pagesize=letter) # ขนาดกระดาษ Letter 8.5 นิ้ว × 11 นิ้ว
 
-        # Connect to the database
+        # เชื่อม database
         conn = sqlite3.connect('data.db')
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM revenue_report')
         rows = cursor.fetchall()
 
-        # Get current date and month
+        # นำเข้าวันปัจจุบัน
         now = datetime.now()
-        month_name = self.thai_months[now.month - 1]  # Thai month name
-        current_date = self.get_thai_date()  # Custom method to get the Thai date
+        month_name = self.thai_months[now.month - 1]  #เดือนไทย
+        current_date = self.get_thai_date()  # เอาวันเดือนปีที่จัดไว้ใน get_that_date มาใช้
 
-        # Calculate total sales
+        # คำนวณ total sale
         saled_total = self.calculate_saled_total()
        
-        # Create Heading
+        # จัดหัวกระดาษ
         heading_center = Paragraph(
             f"รายงานผลประกอบการประจำเดือน {month_name}<br/>ของ AllLottery",
-            ParagraphStyle(name='CenterHeading', fontName='AngsanaNew', fontSize=16, alignment=1, leading=24, spaceAfter=6)
+            ParagraphStyle(name='CenterHeading', fontName='AngsanaNew', fontSize=16, alignment=1, leading=24, spaceAfter=6) # alignment=1 (กลาง) ระยะ 24 pixel ห่าง 6
         )
         heading_left = Paragraph(f"ผู้พิมพ์: admin<br/>PRINT DATE: {current_date}", ParagraphStyle(name='LeftHeading', fontName='AngsanaNew', fontSize=12))
         heading_right = Paragraph(f"ยอดรวม: {saled_total} บาท", ParagraphStyle(name='RightHeading', fontName='AngsanaNew', fontSize=12))
 
-        # Create header table
-        header_data = [[heading_left, heading_right]]
-        header_table = Table(header_data, colWidths=[300, 300])
+        # จัดวางในหัวกระดาษ
+        header_data = [[heading_left, heading_right]]  # สร้างข้อมูลในตาราง 
+        header_table = Table(header_data, colWidths=[300, 100])  
+
+        # ปรับแต่ง TableStyle
         header_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('FONTNAME', (0, 0), (-1, -1), 'AngsanaNew'),
-            ('FONTSIZE', (0, 0), (-1, -1), 12),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-            ('TOPPADDING', (0, 0), (-1, 0), 6),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),  # จัดแนวตั้งให้ชิดด้านบน แถว 0 คอลัม0 ถึงตำแหน่ง -1,-1 ท้าย
+            ('FONTNAME', (0, 0), (-1, -1), 'AngsanaNew'),  # ฟอนต์
+            ('FONTSIZE', (0, 0), (-1, -1), 12),  # ขนาดฟอนต์
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),  # เพิ่ม padding ด้านล่างห่าง 6
+            ('TOPPADDING', (0, 0), (-1, 0), 6),  # เพิ่ม padding ด้านบนห่าง 6
         ]))
 
-        # Define header labels for the table
+        # สร้างหัวตาราง
         header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price']
         data = [header_labels]
 
-        # Add data rows from the database
+        # นำข้อมูลมาเก็บ list
         for row in rows:
             data.append([
                 row[0],  # ID
                 row[1],  # Order Code
                 row[2],  # Lottery ID
-                f"{row[3]:,.2f}",  # Price format with commas and 2 decimal places
-                f"{row[4]:,.2f}",  # Amount format with commas and 2 decimal places
+                f"{row[3]:,.2f}",  # Price 
+                f"{row[4]:,.2f}",  # Amount 
                 row[5],  # Lottery Date
-                f"{row[6]:,.2f}",  # Total Price format with commas and 2 decimal places
+                f"{row[6]:,.2f}",  # Total Price 
             ])
         conn.close()
 
-        # Create the table with formatted data
-        table = Table(data, colWidths=[50, 80, 80, 80, 80, 100, 100])  # Adjust column widths
+        # ตารางเก็บข้อมูล
+        table = Table(data, colWidths=[50, 80, 80, 80, 80, 100, 100])  # ปรับขนาดความกว้างตาราง
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), HexColor('#DAE9F7')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
-            ('ALIGN', (3, 1), (3, -1), 'RIGHT'),
-            ('ALIGN', (4, 1), (4, -1), 'RIGHT'),
-            ('ALIGN', (5, 1), (5, -1), 'RIGHT'),
-            ('ALIGN', (6, 1), (6, -1), 'RIGHT'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'), # จัดขนาดเป็น center ตรงแถว 0 คอ 0 ถึง แถวท้าย คอท้าย
+            ('ALIGN', (2, 1), (2, -1), 'CENTER'),
+            ('ALIGN', (3, 1), (3, -1), 'CENTER'),
+            ('ALIGN', (4, 1), (4, -1), 'CENTER'),
+            ('ALIGN', (5, 1), (5, -1), 'CENTER'),
+            ('ALIGN', (6, 1), (6, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, -1), 'AngsanaNew'),
             ('FONTSIZE', (0, 0), (-1, -1), 12),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black), # เส้นกริดหนา 1 สีดำ
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
         ]))
 
-        # Build the PDF
+        # สร้างไฟล์ pdf
         pdf.build([heading_center, header_table, table])
         print(f"รายงานถูกสร้างเรียบร้อย: {file_path}")
 
-        # Open the PDF file
+        # เปิดไฟล์ pdf
         try:
             os.startfile(file_path)
         except Exception as e:
