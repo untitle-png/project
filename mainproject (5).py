@@ -3030,10 +3030,10 @@ class main:
         """
         self.c.execute(query, ('%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%', 
                                '%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%'))
-        rows = self.c.fetchall()
+        rows = self.c.fetchall() # ดึงทั้งหมดเก็บไว้ใน rows
 
         for row in rows:
-            self.order_tree.insert("", "end", values=row)
+            self.order_tree.insert("", "end", values=row) # เพิ่มแถวใหม่เข้าไปใน Treeview โดยใช้ข้อมูลที่ดึงมาจากฐานข้อมูล (row)
         self.close_db()   
     
     def edit_order(self):
