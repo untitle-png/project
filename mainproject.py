@@ -1599,7 +1599,7 @@ class main:
                         bg_color="white",
                         command=lambda order_code=order_code, save_data=save_data: self.request_receipt(order_code, save_data)
                     )
-                    request_receipt_btn.grid(row=3, column=1, padx=15, pady=10, sticky="w")
+                    request_receipt_btn.grid(row=3, column=0, padx=150, pady=10, sticky="w")
 
                 elif status == 'การชำระไม่ถูกต้อง':
                     edit_slip_btn = ctk.CTkButton(save_list_con, text='แก้ไขข้อมูล', font=('Prompt', 14), fg_color='red', command=edit_slip)
