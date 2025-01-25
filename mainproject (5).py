@@ -1365,7 +1365,7 @@ class main:
                         username_save, num_lottery_save, amount_save, price_save, status_save, img_lottery_save, slip_order, order_code, win_prize, lottery_date
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''',
-                    (username, num_lottery, amount, price, status, img_binary_lot, slip_order, code_key,'รอประกาศผล',lottery_date)
+                    (username, num_lottery, amount, price, status, img_binary_lot, slip_order, code_key,'รอรอดำเนินการ',lottery_date)
                 )
                 self.conn.commit()
                 
@@ -1393,9 +1393,9 @@ class main:
         try:
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
-
+        
             # ดึงข้อมูลจากตาราง save
-            self.c.execute('SELECT num_lottery_save, img_lottery_save, amount_save, price_save, status_save, order_code, lottery_date FROM save WHERE username_save = ?', (self.username,))
+            self.c.execute('SELECT num_lottery_save, img_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date FROM save WHERE username_save = ?', (self.username,))
             save_data = self.c.fetchall()
         except Exception as e:
             print(f"Error fetching orders: {e}")
@@ -1450,7 +1450,7 @@ class main:
         # วนลูปแสดงข้อมูลแต่ละรายการ
         for i, save in enumerate(save_data):
             try:
-                num_lottery, img_lot, amount, price, status, order_code, lottery_date = save
+                num_lottery, img_lot, amount, price, status, order_code, win_prize, lottery_date = save
 
                 # ถ้ายังไม่มี group สำหรับ order_code นี้ ให้สร้างใหม่
                 if order_code not in order_groups:
@@ -1471,7 +1471,7 @@ class main:
 
                     column_attribute.columnconfigure(3, weight=1)
 
-                    column_list = ['หมายเลขลอตเตอรี่', 'จำนวน', 'ราคา', 'สถานะ']
+                    column_list = ['หมายเลขลอตเตอรี่', 'จำนวน', 'ราคา', 'สถานะ/ผลรางวัล']
                     for j, col in enumerate(column_list):
                         label = ctk.CTkLabel(column_attribute, text=col, font=('Kanit Regular', 16), text_color='black', bg_color='white')
                         label.grid(row=0, column=j, padx=60, pady=10, sticky='nsew')
@@ -1509,11 +1509,11 @@ class main:
                 label_price = ctk.CTkLabel(save_list_con, text=price, font=('Kanit Regular', 16), text_color='#86868b', bg_color='white')
                 label_price.grid(row=i, column=2, padx=60, pady=10, sticky='nsew')
 
-                label_status = ctk.CTkLabel(save_list_con, text='รอดำเนินการ', font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
+                label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
                 label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
 
-                if status == 'ชำระเงินแล้ว':
-                    label_status = ctk.CTkLabel(save_list_con, text='รอประกาศรางวัล', font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
+                if status == 'ชำระเงินแล้ว': 
+                    label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
                     label_status.grid(row=i, column=3, padx=100, pady=10, sticky='nsew')
 
                     # ตรวจสอบก่อนว่าข้อมูลใน revenue_report มีอยู่แล้วหรือไม่
@@ -3613,10 +3613,16 @@ class main:
             image_label = ctk.CTkLabel(self.greyframebg_edit_save, text='', image=self.img_tk)
             image_label.place(x=40, y=70)
 
-        username_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Username", font=('Kanit Regular', 16))
-        username_label.place(x=350, y=60)  # Adjusted vertical position
-        self.username_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
-        self.username_save_entry.place(x=500, y=60)
+        id_label = ctk.CTkLabel(self.greyframebg_edit_save, text="ID", font=('Kanit Regular', 16))
+        id_label.place(x=350, y=60)  
+        self.id_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=50)
+        self.id_save_entry.place(x=500, y=60)
+        self.id_save_entry.insert(0, selected_save[0])  
+
+        username_label = ctk.CTkLabel(self.greyframebg_edit_save, text="User", font=('Kanit Regular', 16))
+        username_label.place(x=575, y=60)  
+        self.username_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=140)
+        self.username_save_entry.place(x=630, y=60)
         self.username_save_entry.insert(0, selected_save[1])  
 
         lottery_number_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Lottery Number", font=('Kanit Regular', 16))
@@ -3652,7 +3658,7 @@ class main:
         win_prize_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Win Prize", font=('Kanit Regular', 16))
         win_prize_label.place(x=350, y=420)  
         self.win_prize_combobox = ctk.CTkComboBox(self.greyframebg_edit_save, values=[
-            "รอประกาศผล", "รางวัลที่ 1", "รางวัลที่ 2", "รางวัลที่ 3", "รางวัลที่ 4", "รางวัลที่ 5",
+            "รอดำเนินการ","รอประกาศผล", "รางวัลที่ 1", "รางวัลที่ 2", "รางวัลที่ 3", "รางวัลที่ 4", "รางวัลที่ 5",
             "รางวัลข้างเคียงรางวัลที่หนึ่ง", "รางวัลเลขหน้า 3 ตัว เสี่ยง 2 ครั้ง", 
             "รางวัลเลขท้าย 3 ตัว เสี่ยง 2 ครั้ง", "รางวัลเลขท้าย 2 ตัว เสี่ยง 1 ครั้ง"
         ], width=270)
@@ -3673,6 +3679,7 @@ class main:
         back_btn.place(x=550, y=520)
 
     def load_save_data_to_edit(self, selected_save):
+        self.id_save_entry.insert(0, selected_save[0])
         self.username_save_entry.insert(0, selected_save[1])
         self.lottery_number_save_entry.insert(0, selected_save[2])
         self.amount_save_entry.insert(0, selected_save[3])
@@ -3684,6 +3691,7 @@ class main:
 
     def save_save_edit(self):
         new_data = [
+            self.id_save_entry.get(),
             self.username_save_entry.get(),
             self.lottery_number_save_entry.get(),
             self.amount_save_entry.get(),
@@ -3700,34 +3708,35 @@ class main:
             return
 
         self.save_tree.item(selected_item, values=new_data)
-        
+
         conn = sqlite3.connect('data.db')
         cursor = conn.cursor()
 
-        save_id = self.save_tree.item(selected_item)["values"][0] 
-        username = new_data[0]
-        num_lottery = new_data[1]
-        amount_save = new_data[2]
-        price_save = new_data[3]
-        status_save = new_data[4]
-        order_code = new_data[5]
-        win_prize = new_data[6]
-        lottery_date = new_data[7]
+        # ดึง save_id จากแถวที่เลือกใน save_tree
+        save_id = new_data[0]
+        username = new_data[1]
+        num_lottery = new_data[2]
+        amount_save = new_data[3]
+        price_save = new_data[4]
+        status_save = new_data[5]
+        order_code = new_data[6]
+        win_prize = new_data[7]
+        lottery_date = new_data[8]
 
         try:
             if status_save in ("ชำระเงินแล้ว", "ยังไม่ชำระ"):
-                cursor.execute('''
+                cursor.execute(''' 
                     UPDATE save
-                    SET status_save=?
+                    SET status_save=? 
                     WHERE order_code=?
                 ''', (status_save, order_code))
-            else:
-                cursor.execute('''
-                    UPDATE save
-                    SET username_save=?, num_lottery_save=?, amount_save=?, price_save=?, status_save=?, order_code=?, win_prize=?, lottery_date=?
-                    WHERE id=?
-                ''', (username, num_lottery, amount_save, price_save, status_save, order_code, win_prize, save_id, lottery_date))
-        
+                conn.commit()
+
+            cursor.execute(''' 
+                UPDATE save 
+                SET username_save=?, num_lottery_save=?, amount_save=?, price_save=?, status_save=?, order_code=?, win_prize=?, lottery_date=? 
+                WHERE id=? 
+            ''', (username, num_lottery, amount_save, price_save, status_save, order_code, win_prize, lottery_date, save_id))
             conn.commit()
             
         except Exception as e:
@@ -3737,6 +3746,7 @@ class main:
             conn.close()
 
         # ล้างข้อมูลหลังเซฟ
+        self.id_save_entry.delete(0, 'end')
         self.username_save_entry.delete(0, 'end')
         self.lottery_number_save_entry.delete(0, 'end')
         self.amount_save_entry.delete(0, 'end')
@@ -3744,7 +3754,7 @@ class main:
         self.status_combobox.set("")
         self.order_code_save_entry.delete(0, 'end')
         self.win_prize_combobox.set("")
-        self.lottery_date_entry.delete(0,'end')
+        self.lottery_date_entry.delete(0, 'end')
 
         self.refresh_save_list()
 
