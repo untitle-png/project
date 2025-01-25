@@ -3515,7 +3515,7 @@ class main:
         horiz_scrollbar = tk.Scrollbar(frame, orient="horizontal")
         horiz_scrollbar.pack(side="bottom", fill="x")
 
-        columns = ("ID", "Username", "Lottery Number", "Amount", "Price", "Status", "Order Code","Win Prize")
+        columns = ("ID", "Username", "Lottery Number", "Amount", "Price", "Status", "Order Code", "Win Prize", "Lottery Date")
         self.save_tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=vert_scrollbar.set, xscrollcommand=horiz_scrollbar.set)
 
         for col in columns:
@@ -3544,7 +3544,7 @@ class main:
                 self.save_tree.delete(row)
 
             self.c.execute('''
-                SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize
+                SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date
                 FROM save
             ''')
             rows = self.c.fetchall()
@@ -3562,7 +3562,7 @@ class main:
             self.save_tree.delete(row)
 
         query = """
-        SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize 
+        SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date 
         FROM save
         WHERE username_save LIKE ?
         OR num_lottery_save LIKE ?
@@ -3590,16 +3590,16 @@ class main:
         if not selected_save:
             messagebox.showerror("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้")
             return
-
+        
         self.clear_admin_main_con()
-        self.admin_container_edit_save = ctk.CTkFrame(self.admin_store, width=1920, height=600, corner_radius=0, fg_color='white')
+        self.admin_container_edit_save = ctk.CTkFrame(self.admin_store, width=1920, height=800, corner_radius=0, fg_color='white')  # Increased height
         self.admin_container_edit_save.place(x=100, y=0, relwidth=1, relheight=1)
 
-        self.greyframebg_edit_save = ctk.CTkFrame(self.admin_container_edit_save, corner_radius=15, width=800, height=500, fg_color='#fbf5f5')  
-        self.greyframebg_edit_save.place(x=50, y=50) 
+        self.greyframebg_edit_save = ctk.CTkFrame(self.admin_container_edit_save, corner_radius=15, width=900, height=600, fg_color='#fbf5f5')  # Increased width and height
+        self.greyframebg_edit_save.place(x=50, y=50)
 
         self.text_header_edit_save = ctk.CTkLabel(self.greyframebg_edit_save, text="แก้ไขข้อมูล", font=('Kanit Regular', 20))
-        self.text_header_edit_save.place(x=300, y=10)
+        self.text_header_edit_save.place(x=350, y=10)
 
         user_order = selected_save[1]  
         image_data = self.fetch_image_from_db(user_order)  
@@ -3608,59 +3608,69 @@ class main:
             img = Image.open(io.BytesIO(image_data))
             img.thumbnail((250, 550))  
             self.img_tk = ImageTk.PhotoImage(img)
-            
+
             # สร้าง Label เพื่อแสดงภาพ
             image_label = ctk.CTkLabel(self.greyframebg_edit_save, text='', image=self.img_tk)
             image_label.place(x=40, y=70)
 
         username_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Username", font=('Kanit Regular', 16))
-        username_label.place(x=350, y=70)
+        username_label.place(x=350, y=60)  # Adjusted vertical position
         self.username_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
-        self.username_save_entry.place(x=500, y=70)
+        self.username_save_entry.place(x=500, y=60)
         self.username_save_entry.insert(0, selected_save[1])  
 
         lottery_number_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Lottery Number", font=('Kanit Regular', 16))
-        lottery_number_label.place(x=350, y=120)
+        lottery_number_label.place(x=350, y=120)  
         self.lottery_number_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
         self.lottery_number_save_entry.place(x=500, y=120)
         self.lottery_number_save_entry.insert(0, selected_save[2])
 
         amount_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Amount", font=('Kanit Regular', 16))
-        amount_label.place(x=350, y=170)
+        amount_label.place(x=350, y=180)  
         self.amount_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
-        self.amount_save_entry.place(x=500, y=170)
+        self.amount_save_entry.place(x=500, y=180)
         self.amount_save_entry.insert(0, selected_save[3])
 
         price_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Price", font=('Kanit Regular', 16))
-        price_label.place(x=350, y=220)
+        price_label.place(x=350, y=240)  
         self.price_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
-        self.price_save_entry.place(x=500, y=220)
+        self.price_save_entry.place(x=500, y=240)
         self.price_save_entry.insert(0, selected_save[4])
 
         status_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Status", font=('Kanit Regular', 16))
-        status_label.place(x=350, y=270)
-        self.status_combobox = ctk.CTkComboBox(self.greyframebg_edit_save, values=["ยังไม่ชำระ","ชำระเงินแล้ว"], width=270)
-        self.status_combobox.place(x=500, y=270)
-        self.status_combobox.set(selected_save[5])  
+        status_label.place(x=350, y=300)  
+        self.status_combobox = ctk.CTkComboBox(self.greyframebg_edit_save, values=["ยังไม่ชำระ", "ชำระเงินแล้ว"], width=270)
+        self.status_combobox.place(x=500, y=300)
+        self.status_combobox.set(selected_save[5])
 
         order_code_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Order Code", font=('Kanit Regular', 16))
-        order_code_label.place(x=350, y=320)
+        order_code_label.place(x=350, y=360)  
         self.order_code_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
-        self.order_code_save_entry.place(x=500, y=320)
+        self.order_code_save_entry.place(x=500, y=360)
         self.order_code_save_entry.insert(0, selected_save[6])
 
         win_prize_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Win Prize", font=('Kanit Regular', 16))
-        win_prize_label.place(x=350, y=370)
-        self.win_prize_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
-        self.win_prize_save_entry.place(x=500, y=370)
-        self.win_prize_save_entry.insert(0, selected_save[7])
+        win_prize_label.place(x=350, y=420)  
+        self.win_prize_combobox = ctk.CTkComboBox(self.greyframebg_edit_save, values=[
+            "รอประกาศผล", "รางวัลที่ 1", "รางวัลที่ 2", "รางวัลที่ 3", "รางวัลที่ 4", "รางวัลที่ 5",
+            "รางวัลข้างเคียงรางวัลที่หนึ่ง", "รางวัลเลขหน้า 3 ตัว เสี่ยง 2 ครั้ง", 
+            "รางวัลเลขท้าย 3 ตัว เสี่ยง 2 ครั้ง", "รางวัลเลขท้าย 2 ตัว เสี่ยง 1 ครั้ง"
+        ], width=270)
+        self.win_prize_combobox.place(x=500, y=420)
+        self.win_prize_combobox.set(selected_save[7])
+
+        lottery_date_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Lottery Date", font=('Kanit Regular', 16))  # Adjusted label text
+        lottery_date_label.place(x=350, y=470)  # Adjusted vertical position
+        self.lottery_date_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=270)
+        self.lottery_date_entry.place(x=500, y=470)
+        self.lottery_date_entry.insert(0, selected_save[8])
 
         # ปุ่มยืนยันการแก้ไข
         save_btn = ctk.CTkButton(self.greyframebg_edit_save, text="บันทึก", font=('Kanit Regular', 16), fg_color='black', command=self.save_save_edit)
-        save_btn.place(x=350, y=420)
+        save_btn.place(x=350, y=520)
 
         back_btn = ctk.CTkButton(self.greyframebg_edit_save, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.manage_save_admin_page)
-        back_btn.place(x=550, y=420)
+        back_btn.place(x=550, y=520)
 
     def load_save_data_to_edit(self, selected_save):
         self.username_save_entry.insert(0, selected_save[1])
@@ -3669,7 +3679,8 @@ class main:
         self.price_save_entry.insert(0, selected_save[4])
         self.status_combobox.set(selected_save[5])
         self.order_code_save_entry.insert(0, selected_save[6])
-        self.win_prize_save_entry.insert(0,selected_save[7])
+        self.win_prize_combobox.set(selected_save[7])
+        self.lottery_date_entry.insert(0,selected_save[8])
 
     def save_save_edit(self):
         new_data = [
@@ -3679,7 +3690,8 @@ class main:
             self.price_save_entry.get(),
             self.status_combobox.get(),
             self.order_code_save_entry.get(),
-            self.win_prize_save_entry.get()
+            self.win_prize_combobox.get(),
+            self.lottery_date_entry.get()
         ]
         
         selected_item = self.save_tree.selection()
@@ -3700,6 +3712,7 @@ class main:
         status_save = new_data[4]
         order_code = new_data[5]
         win_prize = new_data[6]
+        lottery_date = new_data[7]
 
         try:
             if status_save in ("ชำระเงินแล้ว", "ยังไม่ชำระ"):
@@ -3711,9 +3724,9 @@ class main:
             else:
                 cursor.execute('''
                     UPDATE save
-                    SET username_save=?, num_lottery_save=?, amount_save=?, price_save=?, status_save=?, order_code=?, win_prize=?
+                    SET username_save=?, num_lottery_save=?, amount_save=?, price_save=?, status_save=?, order_code=?, win_prize=?, lottery_date=?
                     WHERE id=?
-                ''', (username, num_lottery, amount_save, price_save, status_save, order_code, win_prize, save_id))
+                ''', (username, num_lottery, amount_save, price_save, status_save, order_code, win_prize, save_id, lottery_date))
         
             conn.commit()
             
@@ -3730,8 +3743,8 @@ class main:
         self.price_save_entry.delete(0, 'end')
         self.status_combobox.set("")
         self.order_code_save_entry.delete(0, 'end')
-        self.win_prize_save_entry.delete(0, 'end')
-
+        self.win_prize_combobox.set("")
+        self.lottery_date_entry.delete(0,'end')
 
         self.refresh_save_list()
 
