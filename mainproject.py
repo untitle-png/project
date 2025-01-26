@@ -2579,19 +2579,19 @@ class main:
         self.close_db()  
 
     def search_lottery(self):
-        search_term = self.lottery_search_entry.get()
-        self.connect_to_db()
+        search_term = self.lottery_search_entry.get() #ดึงค่ามาเก็บใน term
+        self.connect_to_db() #เชื่อม database
 
-        query = "SELECT id, type_lottery, num_id, price, amount FROM lottery WHERE type_lottery LIKE ? OR num_id LIKE ?"
+        query = "SELECT id, type_lottery, num_id, price, amount FROM lottery WHERE type_lottery LIKE ? OR num_id LIKE ?" # คำสั่ง
         
-        self.c.execute(query, ('%' + search_term + '%', '%' + search_term + '%'))
+        self.c.execute(query, ('%' + search_term + '%', '%' + search_term + '%')) #ดำเนินการคำสั่ง select ค่า term นำไปใช้ในคำค้นหาผ่านตัวแปรที่อยู่ใน tuple 
 
         rows = self.c.fetchall()
 
-        for row in self.lottery_tree.get_children():
-            self.lottery_tree.delete(row)
+        for row in self.lottery_tree.get_children(): #ลูปทุกแถวในตารางเพื่อเคลียร์จอ
+            self.lottery_tree.delete(row) 
 
-        for row in rows:
+        for row in rows: # ลูปมาแสดงผล
             self.lottery_tree.insert("", tk.END, values=row)
 
         self.close_db()
@@ -2610,11 +2610,11 @@ class main:
         labels = ["ID", "Lottery Type", "Lottery Number", "Price", "Amount","Lottery Date"]
         self.entries_lottery = []  
         
-        for i, label in enumerate(labels):
+        for i, label in enumerate(labels): #ลูปสร้าง label 
             ctk.CTkLabel(form_frame, text=label, font=('Kanit Regular', 16)).grid(row=i, column=0, padx=10, pady=10)
             entry_lottery = ctk.CTkEntry(form_frame)
             entry_lottery.grid(row=i, column=1, padx=10, pady=10)
-            self.entries_lottery.append(entry_lottery) 
+            self.entries_lottery.append(entry_lottery) #เก็บข้อมูลใน entry
 
         save_btn = ctk.CTkButton(form_frame, text="บันทึก", font=('Kanit Regular', 16), command=self.save_lottery_edits)
         save_btn.grid(row=len(labels), column=0, columnspan=2, pady=20)
@@ -2622,7 +2622,7 @@ class main:
         self.load_lottery_data_to_edit()
         
 
-    def load_lottery_data_to_edit(self):
+    def load_lottery_data_to_edit(self): #โหลดข้อมูลเพื่อมาแสดงใน edit
         selected_item = self.lottery_tree.selection()
         if selected_item:
             lottery_data = self.lottery_tree.item(selected_item, "values")
@@ -3729,7 +3729,7 @@ class main:
         if image_data:
             img = Image.open(io.BytesIO(image_data)) #แปลงรูปเป็น binary
             img.thumbnail((250, 550))  
-            self.img_tk = ImageTk.PhotoImage(img) #แปลงรูป
+            self.img_tk = ImageTk.PhotoImage(img) #แปลงรูปให้ใช้งานได้กับ tkinter
 
             # สร้าง Label เพื่อแสดงภาพ
             image_label = tk.Label(self.greyframebg_edit_save, text='', image=self.img_tk)
