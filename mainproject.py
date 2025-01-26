@@ -119,7 +119,8 @@ class main:
                 slip_order  BLOB NOT NULL,
                 order_code TEXT NOT NULL,
                 win_prize TEXT NOT NULL,
-                lottery_date DATE NOT NULL
+                lottery_date DATE NOT NULL,
+                get_prize INTEGER NOT NULL
                 )''')
             self.conn.commit()
             
@@ -1419,7 +1420,7 @@ class main:
             if not d:
                 print("No orders found.")
                 return
-            
+
             code_key = str(uuid.uuid4())[:6]  # สร้างรหัสการสั่งซื้อ
 
             for row in d:
@@ -1442,27 +1443,26 @@ class main:
                         img_binary_lot = img_binary_lot.getvalue()
                     except Exception as e:
                         print(f"Error processing lottery image: {e}")
-                        
-                if d:
-                    self.c.execute('''UPDATE save SET slip_order = ? WHERE order_code = ? ''')        
 
-                # กำหนดค่า img_binary_slip ให้เป็นไฟล์สลิปที่แนบมา หรือค่าว่างถ้าไม่มีสลิป
-                if 'img_binary_slip' in globals() and img_binary_slip:  # ตรวจสอบว่ามีการกำหนดค่าสลิปหรือไม่
+                # กำหนดค่า slip_order
+                slip_order = b""  # กำหนดเป็นไฟล์เปล่าหากไม่มีการแนบสลิป
+                if 'img_binary_slip' in globals() and img_binary_slip:
                     slip_order = img_binary_slip
-                else:
-                    slip_order = b""  # กำหนดค่าเริ่มต้นเป็นไฟล์เปล่า (เมื่อไม่มีสลิป)
+
+                # อัพเดทข้อมูลในตาราง save
+                self.c.execute('''UPDATE save SET slip_order = ? WHERE order_code = ? ''', (slip_order, code_key))
 
                 # เพิ่มข้อมูลในตาราง save
                 self.c.execute(
                     '''
                     INSERT INTO save (
-                        username_save, num_lottery_save, amount_save, price_save, status_save, img_lottery_save, slip_order, order_code, win_prize, lottery_date
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        username_save, num_lottery_save, amount_save, price_save, status_save, img_lottery_save, slip_order, order_code, win_prize, lottery_date, get_prize
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''',
-                    (username, num_lottery, amount, price, status, img_binary_lot, slip_order, code_key,'รอรอดำเนินการ',lottery_date)
+                    (username, num_lottery, amount, price, status, img_binary_lot, slip_order, code_key,'รอรอดำเนินการ',lottery_date, 0)
                 )
                 self.conn.commit()
-                
+
                 # ลบข้อมูลจากตาราง lottery
                 self.c.execute('DELETE FROM lottery WHERE num_id = ?', (num_lottery,))  # ใช้ num_id หรือชื่อคอลัมน์ที่ถูกต้อง
                 self.conn.commit()
@@ -1479,6 +1479,7 @@ class main:
             if self.conn:
                 self.conn.close()
 
+
     def Mysave_page(self):
         self.changeColor_icon(self.Mysave_page, "save", self.save_btn)
         self.clear_main_con()
@@ -1489,7 +1490,7 @@ class main:
             self.c = self.conn.cursor()
         
             # ดึงข้อมูลจากตาราง save
-            self.c.execute('SELECT num_lottery_save, img_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date FROM save WHERE username_save = ?', (self.username,))
+            self.c.execute('SELECT num_lottery_save, img_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date, get_prize FROM save WHERE username_save = ?', (self.username,))
             save_data = self.c.fetchall()
             
         except Exception as e:
@@ -1517,7 +1518,7 @@ class main:
         # วนลูปแสดงข้อมูลแต่ละรายการ
         for i, save in enumerate(save_data):
             try:
-                num_lottery, img_lot, amount, price, status, order_code, win_prize, lottery_date = save
+                num_lottery, img_lot, amount, price, status, order_code, win_prize, lottery_date, get_prize = save
     
                 def edit_slip():
                     self.payment_page = tk.Toplevel(self.store)
@@ -3721,7 +3722,7 @@ class main:
                 self.save_tree.delete(row)
 
             self.c.execute('''
-                SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date
+                SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date, get_prize
                 FROM save
             ''')
             rows = self.c.fetchall()
@@ -3743,14 +3744,14 @@ class main:
         # ถ้าผู้ใช้ค้นหาคำว่า "ถูกรางวัล" ให้ค้นหาจาก status_save โดยตรง
         if search_value == "ถูกรางวัล":
             query = """
-            SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date 
+            SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date, get_prize 
             FROM save
             WHERE status_save = 'ถูกรางวัล'
             """
             self.c.execute(query)
         elif search_value == "ชำระเงิน":
             query = """
-            SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date 
+            SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date, get_prize 
             FROM save
             WHERE status_save = 'ชำระเงินแล้ว'
             """
@@ -3758,7 +3759,7 @@ class main:
         else:
             # หากคำค้นหาไม่ใช่ "ถูกรางวัล" ให้ค้นหาจากฟิลด์ต่างๆ
             query = """
-            SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date 
+            SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date, get_prize
             FROM save
             WHERE username_save LIKE ?
             OR num_lottery_save LIKE ?
@@ -4004,7 +4005,7 @@ class main:
             print(f"Results: {results}")
 
             # ดึงข้อมูลหมายเลขลอตเตอรี่ที่ผู้ใช้เก็บไว้จากตาราง save
-            self.c.execute('''SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date FROM save''')
+            self.c.execute('''SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date, get_prize FROM save''')
             save_data = self.c.fetchall()
 
             # วนลูปเพื่อตรวจสอบผลลอตเตอรี่
