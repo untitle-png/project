@@ -2624,9 +2624,9 @@ class main:
 
     def load_lottery_data_to_edit(self): #โหลดข้อมูลเพื่อมาแสดงใน edit
         selected_item = self.lottery_tree.selection()
-        if selected_item:
-            lottery_data = self.lottery_tree.item(selected_item, "values")
-            for i, entry_lottery in enumerate(self.entries_lottery):
+        if selected_item: # ตรวจว่าไม่ใช่รายการว่าง
+            lottery_data = self.lottery_tree.item(selected_item, "values") # ดึงข้อมูลจากตารางมาเก็บ
+            for i, entry_lottery in enumerate(self.entries_lottery): # ลูปเพื่อนำแต่ละค่าไปขึ้นหน้าใน edit
                 entry_lottery.insert(0, lottery_data[i])
 
     def save_lottery_edits(self):
@@ -3676,31 +3676,54 @@ class main:
 
             self.close_db()  
 
-        
+            
     def search_save(self):
         self.connect_to_db()
         search_value = self.search_save_entry.get()
+        
+        # ลบข้อมูลที่แสดงอยู่ก่อนหน้านี้ใน treeview
         for row in self.save_tree.get_children():
             self.save_tree.delete(row)
 
-        query = """
-        SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date 
-        FROM save
-        WHERE username_save LIKE ?
-        OR num_lottery_save LIKE ?
-        OR amount_save LIKE ?
-        OR price_save LIKE ?
-        OR status_save LIKE ?
-        OR order_code LIKE ?
-        OR win_prize LIKE ?
-        """
-        self.c.execute(query, ('%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%', 
-                            '%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%'))
+        # ถ้าผู้ใช้ค้นหาคำว่า "ถูกรางวัล" ให้ค้นหาจาก status_save โดยตรง
+        if search_value == "ถูกรางวัล":
+            query = """
+            SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date 
+            FROM save
+            WHERE status_save = 'ถูกรางวัล'
+            """
+            self.c.execute(query)
+        elif search_value == "ชำระเงิน":
+            query = """
+            SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date 
+            FROM save
+            WHERE status_save = 'ชำระเงินแล้ว'
+            """
+            self.c.execute(query)    
+        else:
+            # หากคำค้นหาไม่ใช่ "ถูกรางวัล" ให้ค้นหาจากฟิลด์ต่างๆ
+            query = """
+            SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date 
+            FROM save
+            WHERE username_save LIKE ?
+            OR num_lottery_save LIKE ?
+            OR amount_save LIKE ?
+            OR price_save LIKE ?
+            OR status_save LIKE ?
+            OR order_code LIKE ?
+            OR win_prize LIKE ?
+            """
+            self.c.execute(query, ('%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%', 
+                                '%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%', '%' + search_value + '%'))
+
         rows = self.c.fetchall()
 
+        # แสดงผลลัพธ์ที่ได้ใน treeview
         for row in rows:
             self.save_tree.insert("", "end", values=row)
+        
         self.close_db()
+
         
     def edit_save(self):
         selected_item = self.save_tree.selection()
