@@ -1497,7 +1497,7 @@ class main:
             save_data = []
         finally:
             if self.conn:
-                self.conn.close()
+                self.conn.close()  
                 
         # สร้าง Container สำหรับแสดงข้อมูล
         self.save_page_con = ctk.CTkFrame(self.container, width=880, height=900, fg_color='#ffffff')
@@ -1518,36 +1518,40 @@ class main:
         for i, save in enumerate(save_data):
             try:
                 num_lottery, img_lot, amount, price, status, order_code, win_prize, lottery_date = save
-                
+    
                 def edit_slip():
                     self.payment_page = tk.Toplevel(self.store)
                     self.payment_page.geometry('400x600')
                     self.payment_page.title('ชำระเงิน')
-                    global img_slip
                     file_path = filedialog.askopenfilename(
                     title="แนบสลิป",
-                    filetypes=(("JPEG files", "*.jpg"), ("All files", "*.*")))
+                    filetypes=(("JPEG files", "*.jpg"), ("All files", "*.*"))
+                )
 
                     if file_path:
-                        self.file_path = file_path
-                        img = Image.open(file_path)
-                        img = img.resize((200, 280))  # ปรับขนาดภาพให้พอดีกับหน้าจอ
-                        img_slip = ctk.CTkImage(img, size=(200, 280))
-                        
-                        # แปลงภาพเป็นไบนารี
-                        with io.BytesIO() as output:
-                            global img_binary_slip
-                            img.save(output, format="PNG")  # บันทึกเป็น PNG ในหน่วยความจำ
-                            img_binary_slip = output.getvalue()  # ดึงข้อมูลไบนารี
-                    
-                        show_slip = ctk.CTkLabel(self.payment_page,image=img_slip,width=200,height=280,text='')
-                        show_slip.grid(row = 2,column = 0,sticky= 'nsew',pady = 5,padx = 100 )
-                        
-                        confirm_btn = ctk.CTkButton(self.payment_page,text='ยืนยันการชำระเงิน',font=('Prompt',14)
-                                                    ,height=40,width=20,
-                                                    command  = self.clear_stock)
-                        confirm_btn.grid(row =3,column = 0,sticky= 'nsew',pady = 5,padx = 100 )
-        
+                        try:
+                            # โหลดและแปลงภาพเป็นไบนารี
+                            img = Image.open(file_path).resize((200, 280))
+                            img_slip = ctk.CTkImage(img, size=(200, 280))
+
+                            with io.BytesIO() as output:
+                                img.save(output, format="PNG")
+                                img_binary_slip1 = output.getvalue()
+
+                            # แสดงภาพที่แนบ
+                            show_slip = ctk.CTkLabel(self.payment_page, image=img_slip, width=200, height=280, text='')
+                            show_slip.grid(row=2, column=0, sticky='nsew', pady=5, padx=100)
+
+                            # ปุ่มยืนยัน
+                            confirm_btn = ctk.CTkButton(
+                                self.payment_page, text='ยืนยันการชำระเงิน', font=('Prompt', 14),
+                                height=40, width=20,
+                                command=lambda: self.update_slip_status(order_code, img_binary_slip1)
+                            )
+                            confirm_btn.grid(row=3, column=0, sticky='nsew', pady=5, padx=100)
+
+                        except Exception as e:
+                            print(f"Error processing slip: {e}")
 
                 # ถ้ายังไม่มี group สำหรับ order_code นี้ ให้สร้างใหม่
                 if order_code not in order_groups:
@@ -1602,12 +1606,10 @@ class main:
                  # ปรับค่า current_row ของ order_box สำหรับรายการถัดไป
                 order_box.current_row += 1
                 
-                
-
                 label_image = tk.Label(save_list_con, image=img_lottery, width=200, height=100)
                 label_image.image = img_lottery  # เก็บ reference เพื่อป้องกัน garbage collection
                 label_image.grid(row=i, column=0, padx=10, pady=10)
-                 
+                     
                 label_num = ctk.CTkLabel(save_list_con, text=num_lottery, font=('Kanit Regular', 20), text_color='black', bg_color='white',width=80)
                 label_num.grid(row=i, column=0, padx=32, pady=16, sticky='ne')
 
@@ -1620,7 +1622,7 @@ class main:
                 label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
                 label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
                
-                if status in ['ชำระเงินแล้ว', 'ไม่ถูกรางวัล', 'ถูกรางวัล']:
+                if status == 'ชำระเงินแล้ว': 
                     label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
                     label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
 
@@ -1671,18 +1673,65 @@ class main:
                     edit_slip_btn.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
                     
                 elif status == 'ถูกรางวัล':
-                    claim_prize_btn = ctk.CTkButton(save_list_con, text=f'รับรางวัล {win_prize}', font=('Prompt', 14), fg_color='green',command=edit_slip)
-                    claim_prize_btn.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
+                    label_status = ctk.CTkLabel(save_list_con, text=f"ขอแสดงความยินดี\nคุณถูกรางวัล : {win_prize}", font=('Kanit Regular', 14), text_color='#468847', bg_color='white')
+                    label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
+                    request_receipt_btn = ctk.CTkButton(
+                        order_group,
+                        text="ขอใบเสร็จ",
+                        font=("Kanit Regular", 16),
+                        text_color="black",
+                        bg_color="white",
+                        command=lambda order_code=order_code, save_data=save_data: self.request_receipt(order_code, save_data)
+                    )
+                    request_receipt_btn.grid(row=3, column=0, padx=150, pady=10, sticky="w")
+
                 
                 elif status == 'ไม่ถูกรางวัล':
                     label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='red', bg_color='white')
                     label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
-                    
+                    request_receipt_btn = ctk.CTkButton(
+                        order_group,
+                        text="ขอใบเสร็จ",
+                        font=("Kanit Regular", 16),
+                        text_color="black",
+                        bg_color="white",
+                        command=lambda order_code=order_code, save_data=save_data: self.request_receipt(order_code, save_data)
+                    )
+                    request_receipt_btn.grid(row=3, column=0, padx=150, pady=10, sticky="w")
+
 
             except Exception as e:
                 print(f"Error processing save data: {e}")
-                continue      
-            
+                continue
+
+    def update_slip_status(self, order_code, img_binary_slip1):
+        try:
+            with sqlite3.connect('data.db') as conn:
+                c = conn.cursor()
+                
+                c.execute('''SELECT * FROM save WHERE order_code = ? AND status_save = ?'''
+                          , (order_code, 'การชำระไม่ถูกต้อง'))
+                results =c.fetchone()
+                
+                if results:
+                    c.execute(
+                        '''UPDATE save 
+                        SET slip_order = ?
+                        WHERE order_code = ? AND status_save = ?''',
+                        (img_binary_slip1, order_code, 'การชำระไม่ถูกต้อง')
+                )
+                    conn.commit()
+                    print(f"Successfully updated order: {order_code}")
+                    tk.messagebox.showinfo("สำเร็จ", f"อัปเดตสถานะสำเร็จสำหรับคำสั่งซื้อ {order_code}")
+                else:
+                    print(f"No rows updated for order_code: {order_code}")
+                    tk.messagebox.showwarning("ข้อผิดพลาด", "ไม่พบคำสั่งซื้อหรือสถานะไม่ตรงกัน")
+                self.payment_page.destroy()
+
+        except Exception as e:
+            print(f"Error updating slip status: {e}")
+            tk.messagebox.showerror("ข้อผิดพลาด", "เกิดข้อผิดพลาดขณะอัปเดตสถานะ")
+
     def request_receipt(self, order_code, save_data):
         # เก็บค่า order_code ไว้ในตัวแปรของคลาส
         self.order_code = order_code  
@@ -1691,33 +1740,37 @@ class main:
         receipt_window.geometry("500x600")
         receipt_window.title("ใบเสร็จ")
 
+        # สร้าง Frame ที่สามารถเลื่อนลงได้
+        receipt_canvas = ctk.CTkScrollableFrame(receipt_window, width=480, height=500, fg_color='white', scrollbar_button_color='white', scrollbar_button_hover_color='white')
+        receipt_canvas.pack(pady=10, padx=10, fill="both", expand=True)
+
         total_price = sum(price for (num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date) in save_data if order_code == order_code_data)
 
         # ส่วนหัวของใบเสร็จ
-        header_label = ctk.CTkLabel(receipt_window, text="ใบเสร็จชำระเงิน", font=("Kanit Regular", 20), text_color="black")
-        header_label.pack(pady=10)
+        header_label = ctk.CTkLabel(receipt_canvas, text="ใบเสร็จชำระเงิน", font=("Kanit Regular", 20), text_color="black")
+        header_label.grid(row=0, column=0, pady=10)
 
         # เส้นคั่นบน
-        separator1 = ctk.CTkLabel(receipt_window, text="-" * 100, font=("Kanit Regular", 12), text_color="black")
-        separator1.pack(pady=5)
+        separator1 = ctk.CTkLabel(receipt_canvas, text="-" * 100, font=("Kanit Regular", 12), text_color="black")
+        separator1.grid(row=1, column=0, pady=5)
 
         # ส่วนตารางรายละเอียด
-        table_frame = ctk.CTkFrame(receipt_window, fg_color="lightgray", width=450, height=300)
-        table_frame.pack(pady=10, padx=10, fill="both", expand=True)
+        table_frame = ctk.CTkFrame(receipt_canvas, fg_color="white", width=450, height=300)
+        table_frame.grid(row=2, column=0, pady=10, padx=10, sticky="nsew")
 
         # หัวตาราง
         table_header = ctk.CTkLabel(
             table_frame, text="หมายเลขคำสั่งซื้อ      จำนวน      ล็อตเตอรี่หมายเลข      ราคา", 
             font=("Kanit Regular", 14), text_color="black"
         )
-        table_header.pack(anchor="w", padx=20, pady=5)
+        table_header.grid(row=0, column=0, padx=20, pady=5)
 
         # เส้นคั่น
         separator2 = ctk.CTkLabel(table_frame, text="-" * 100, font=("Kanit Regular", 12), text_color="black")
-        separator2.pack(anchor="w", padx=20)
+        separator2.grid(row=1, column=0, padx=20)
 
         # รายการลอตเตอรี่
-        for save in save_data:
+        for i, save in enumerate(save_data):
             num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date = save
             if order_code == order_code_data:
                 detail_label = ctk.CTkLabel(
@@ -1726,19 +1779,19 @@ class main:
                     font=("Kanit Regular", 14),
                     text_color="black",
                 )
-                detail_label.pack(anchor="w", padx=20, pady=2)
+                detail_label.grid(row=i + 2, column=0, padx=20, pady=2)  # เพิ่ม i เพื่อให้รายการไม่ทับกัน
 
         # เส้นคั่นล่าง
-        separator3 = ctk.CTkLabel(receipt_window, text="-" * 50, font=("Kanit Regular", 12), text_color="black")
-        separator3.pack(pady=5)
+        separator3 = ctk.CTkLabel(receipt_canvas, text="-" * 50, font=("Kanit Regular", 12), text_color="black")
+        separator3.grid(row=len(save_data) + 3, column=0, pady=5)
 
         # ส่วนรวมยอดเงิน
-        total_price_label = ctk.CTkLabel(receipt_window, text=f"รวม          {total_price:,.2f} บาท", font=("Kanit Regular", 16), text_color="black")
-        total_price_label.pack(pady=5)
+        total_price_label = ctk.CTkLabel(receipt_canvas, text=f"รวม          {total_price:,.2f} บาท", font=("Kanit Regular", 16), text_color="black")
+        total_price_label.grid(row=len(save_data) + 4, column=0, pady=5)
 
         # ปุ่ม 
-        button_frame = ctk.CTkFrame(receipt_window, fg_color="lightgray")
-        button_frame.pack(pady=20)
+        button_frame = ctk.CTkFrame(receipt_canvas, fg_color="lightgray")
+        button_frame.grid(row=len(save_data) + 5, column=0, pady=20)
 
         # ปุ่มขอไฟล์ PDF
         pdf_button = ctk.CTkButton(button_frame, text="ขอไฟล์ PDF", command=lambda: self.export_to_pdf(order_code, save_data), font=("Prompt", 14))
@@ -1747,6 +1800,7 @@ class main:
         # ปุ่มปิด
         close_button = ctk.CTkButton(button_frame, text="กลับ", command=receipt_window.destroy, font=("Prompt", 14))
         close_button.grid(row=0, column=1, padx=10)
+
 
     
     def export_to_pdf(self, order_code, save_data):
@@ -1909,14 +1963,15 @@ class main:
                                                 command=self.edit_profile)
             edit_profile_button.place(x=30, y=350)  
 
-            
+            '''
             view_lottery_button = ctk.CTkButton(user_info, text="ตรวจรางวัลหวย", 
                                             width=150, height=30, 
                                             fg_color='#2b2b2b', text_color='white',
                                             hover_color='#000000',
                                             command=self.lottery_win_menu)
             view_lottery_button.place(x=200, y=350) 
-        
+            '''
+            
     def edit_profile(self):
         self.clear_main_con()  
         self.container = ctk.CTkFrame(self.store, width=1920, height=600, corner_radius=0, fg_color='white')
