@@ -1671,8 +1671,8 @@ class main:
                     edit_slip_btn.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
                     
                 elif status == 'ถูกรางวัล':
-                    #รอการอัพเดทสลิปการโอนเงินผู้ถูกรางวัล
-                    pass
+                    claim_prize_btn = ctk.CTkButton(save_list_con, text=f'รับรางวัล {win_prize}', font=('Prompt', 14), fg_color='green',command=edit_slip)
+                    claim_prize_btn.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
                 
                 elif status == 'ไม่ถูกรางวัล':
                     label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='red', bg_color='white')
@@ -1681,7 +1681,7 @@ class main:
 
             except Exception as e:
                 print(f"Error processing save data: {e}")
-                continue
+                continue      
             
     def request_receipt(self, order_code, save_data):
         # เก็บค่า order_code ไว้ในตัวแปรของคลาส
@@ -2275,7 +2275,8 @@ class main:
         for result_label in self.result_labels:
             result_label.configure(text="", fg_color="transparent")
     '''        
-            
+
+###################################### หน้า admin ##############################################################           
     def admin_menu_ui(self):
         self.root.destroy()  # ปิดหน้าต่างหลัก
         self.admin_store = tk.Tk()  # สร้างหน้าต่างใหม่สำหรับหน้าผู้ดูแลระบบ
@@ -4022,13 +4023,24 @@ class main:
         rows = cursor.fetchall()
 
         header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price']
-        for col, header in enumerate(header_labels):
+        for col, header in enumerate(header_labels): #  วนลูปแต่ละชื่อ สร้าง label header
             header_label = ctk.CTkLabel(self.scrollable_frame_revenue, text=header, font=('Arial', 12, 'bold'), width=120)
             header_label.grid(row=0, column=col, padx=10, pady=5)
 
-        for row_index, row in enumerate(rows, start=1):  
-            for col_index, value in enumerate(row):
-                cell_label = ctk.CTkLabel(self.scrollable_frame_revenue, text=str(value), font=('Arial', 10), width=120)
+            
+        for row_index, row in enumerate(rows, start=1): #วนรูปข้อมูลใน rows  
+            formatted_row = [
+                row[0],  # ID
+                row[1],  # Order Code
+                row[2],  # Lottery ID
+                f"{row[3]:,.2f}",  # Price
+                f"{row[4]:,.2f}",  # Amount
+                row[5],  # Lottery Date
+                f"{row[6]:,.2f}",  # Total Price
+            ]
+            
+            for col_index, value in enumerate(formatted_row): # วนรูปสร้าง label ในตาราง
+                cell_label = ctk.CTkLabel(self.scrollable_frame_revenue, text=value, font=('Arial', 10), width=120)
                 cell_label.grid(row=row_index, column=col_index, padx=10, pady=5)
 
         conn.close()
