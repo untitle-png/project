@@ -1750,15 +1750,15 @@ class main:
                 )
                     conn.commit()
                     print(f"Successfully updated order: {order_code}")
-                    tk.messagebox.showinfo("สำเร็จ", f"อัปเดตสถานะสำเร็จสำหรับคำสั่งซื้อ {order_code}")
+                    messagebox.showinfo("สำเร็จ", f"อัปเดตสถานะสำเร็จสำหรับคำสั่งซื้อ {order_code}")
                 else:
                     print(f"No rows updated for order_code: {order_code}")
-                    tk.messagebox.showwarning("ข้อผิดพลาด", "ไม่พบคำสั่งซื้อหรือสถานะไม่ตรงกัน")
+                    messagebox.showwarning("ข้อผิดพลาด", "ไม่พบคำสั่งซื้อหรือสถานะไม่ตรงกัน")
                 self.payment_page.destroy()
 
         except Exception as e:
             print(f"Error updating slip status: {e}")
-            tk.messagebox.showerror("ข้อผิดพลาด", "เกิดข้อผิดพลาดขณะอัปเดตสถานะ")
+            messagebox.showerror("ข้อผิดพลาด", "เกิดข้อผิดพลาดขณะอัปเดตสถานะ")
 
     def request_receipt(self, order_code, save_data):
         # เก็บค่า order_code ไว้ในตัวแปรของคลาส
