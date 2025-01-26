@@ -1755,7 +1755,7 @@ class main:
         separator1.grid(row=1, column=0, pady=5)
 
         # ส่วนตารางรายละเอียด
-        table_frame = ctk.CTkFrame(receipt_canvas, fg_color="white", width=450, height=300)
+        table_frame = ctk.CTkFrame(receipt_canvas, fg_color='white', width=450, height=300)
         table_frame.grid(row=2, column=0, pady=10, padx=10, sticky="nsew")
 
         # หัวตาราง
@@ -1789,8 +1789,8 @@ class main:
         total_price_label = ctk.CTkLabel(receipt_canvas, text=f"รวม          {total_price:,.2f} บาท", font=("Kanit Regular", 16), text_color="black")
         total_price_label.grid(row=len(save_data) + 4, column=0, pady=5)
 
-        # ปุ่ม 
-        button_frame = ctk.CTkFrame(receipt_canvas, fg_color="lightgray")
+        # frame สำหรับปุ่ม 
+        button_frame = ctk.CTkFrame(receipt_canvas, fg_color='white')
         button_frame.grid(row=len(save_data) + 5, column=0, pady=20)
 
         # ปุ่มขอไฟล์ PDF
