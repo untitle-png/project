@@ -140,7 +140,8 @@ class main:
                 price INTEGER NOT NULL,
                 amount INTEGER NOT NULL,
                 lottery_date DATE NOT NULL,
-                total_price INTEGER NOT NULL           
+                total_price INTEGER NOT NULL,
+                buy_date DATE NOT NULL            
             )''')
             self.conn.commit()
 
@@ -1624,12 +1625,10 @@ class main:
 
                 label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), 
                                             text_color='#468847', bg_color='white',width=200)
-                label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
+                label_status.grid(row=i, column=3, padx=0, pady=10, sticky='nsew')
                
                 if status == 'ชำระเงินแล้ว': 
-                    label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
-                    label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
-
+                    label_status.configure(text=f"{win_prize}", font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
                     # ตรวจสอบก่อนว่าข้อมูลใน revenue_report มีอยู่แล้วหรือไม่
                     try:
                         order_code = order_code
@@ -1637,7 +1636,8 @@ class main:
                         price = price
                         amount = amount
                         lottery_date = lottery_date
-                        total_price = price * amount  
+                        total_price = price * amount
+                        current_date = self.get_thai_date()  
 
                         # เชื่อมต่อกับฐานข้อมูล
                         self.conn = sqlite3.connect('data.db')
@@ -1651,9 +1651,9 @@ class main:
                             self.conn.close()
                         else:
                             # ถ้าไม่พบข้อมูล ให้ทำการบันทึกใหม่
-                            self.c.execute('''INSERT INTO revenue_report (order_code, lottery_id, price, amount, lottery_date, total_price)
-                                            VALUES (?, ?, ?, ?, ?, ?)''',
-                                        (order_code, lottery_id, price, amount, lottery_date, total_price))
+                            self.c.execute('''INSERT INTO revenue_report (order_code, lottery_id, price, amount, lottery_date, total_price, buy_date)
+                                            VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                                        (order_code, lottery_id, price, amount, lottery_date, total_price, current_date))
                             self.conn.commit()
                         
                     except Exception as e:
@@ -1677,8 +1677,7 @@ class main:
                     edit_slip_btn.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
                     
                 elif status == 'ถูกรางวัล':
-                    label_status.configure(text=f"ขอแสดงความยินดี\nคุณถูกรางวัล : {win_prize}")
-                    label_status.grid(row=i, column=3, padx=0, pady=10, sticky='nsew')
+                    label_status.configure(text=f"ขอแสดงความยินดี\nคุณถูก{win_prize}",font = ('Prompt',14))
                     label_price.configure(text=f"{get_prize}")
                     request_receipt_btn = ctk.CTkButton(
                         order_group,
@@ -1707,8 +1706,7 @@ class main:
 
                 
                 elif status == 'ไม่ถูกรางวัล':
-                    label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='red', bg_color='white')
-                    label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew',columnspan=2)
+                    label_status.configure(text=f"{win_prize}", font=('Kanit Regular', 16), text_color='red', bg_color='white')
                     request_receipt_btn = ctk.CTkButton(
                         order_group,
                         text="ขอใบเสร็จ",
@@ -1718,6 +1716,22 @@ class main:
                         command=lambda order_code=order_code, save_data=save_data: self.request_receipt(order_code, save_data)
                     )
                     request_receipt_btn.grid(row=3, column=0, padx=150, pady=10, sticky="w")
+                elif status =='โอนเงินแล้ว':
+                    self.c.execute('''SELECT slip_order FROM save WHERE status_save  = ?''', ('โอนเงินแล้ว'))
+                    slip_success = self.c.fetchone()
+                    
+                     # แปลงภาพจากไบนารี
+                    img_slip = None
+                    if  slip_success :
+                        try:
+                            img1 = Image.open(io.BytesIO( slip_success )).resize((200, 280))
+                            img_slip = ImageTk.PhotoImage(img1)
+                        except Exception as e:
+                            print(f"Error loading image: {e}")
+                        
+                    
+                    success_tranfer_label.configure(self.status_tranfer_page,image=img_slip)
+                    success_tranfer_label.pack(pady=10)
 
 
             except Exception as e:
@@ -1727,9 +1741,9 @@ class main:
     def status_tranfer_prizes(self):
         self.status_tranfer_page = tk.Toplevel(self.store)
         self.status_tranfer_page.geometry('400x600')
-        
-        status_label = ctk.CTkLabel(self.status_tranfer_page, text="รอแอดมินโอนเงิน", font=('Kanit Regular', 20), text_color='black')
-        status_label.pack(pady=200)
+        global success_tranfer_label
+        success_tranfer_label= ctk.CTkLabel(self.status_tranfer_page, text="รอแอดมินโอนเงิน", font=('Kanit Regular', 20), text_color='black')
+        success_tranfer_label.pack(pady=200)
         pass
 
     def update_slip_status(self, order_code, img_binary_slip1):
@@ -3876,7 +3890,7 @@ class main:
 
         status_label = ctk.CTkLabel(self.greyframebg_edit_save, text="Status", font=('Kanit Regular', 16))
         status_label.place(x=350, y=300)  
-        self.status_combobox = ctk.CTkComboBox(self.greyframebg_edit_save, values=["ยังไม่ชำระ", "ชำระเงินแล้ว","การชำระไม่ถูกต้อง","ถูกรางวัล","ไม่ถูกรางวัล"], width=270)
+        self.status_combobox = ctk.CTkComboBox(self.greyframebg_edit_save, values=["ยังไม่ชำระ", "ชำระเงินแล้ว", "การชำระไม่ถูกต้อง",  "โอนเงินแล้ว","ถูกรางวัล","ไม่ถูกรางวัล"], width=270)
         self.status_combobox.place(x=500, y=300)
         self.status_combobox.set(selected_save[5])
 
@@ -4055,7 +4069,7 @@ class main:
         lottery_date = new_data[8]
 
         try:
-            if status_save in ("ชำระเงินแล้ว", "ยังไม่ชำระ","การชำระไม่ถูกต้อง"):
+            if status_save in ("ชำระเงินแล้ว", "ยังไม่ชำระ","การชำระไม่ถูกต้อง", "โอนเงินแล้ว"):
                 cursor.execute(''' 
                     UPDATE save
                     SET status_save=? 
@@ -4269,7 +4283,7 @@ class main:
         cursor.execute('SELECT * FROM revenue_report')
         rows = cursor.fetchall()
 
-        header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price']
+        header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price', 'Buy date']
         for col, header in enumerate(header_labels): #  วนลูปแต่ละชื่อ สร้าง label header
             header_label = ctk.CTkLabel(self.scrollable_frame_revenue, text=header, font=('Arial', 12, 'bold'), width=120)
             header_label.grid(row=0, column=col, padx=10, pady=5)
@@ -4284,6 +4298,7 @@ class main:
                 f"{row[4]:,.2f}",  # Amount
                 row[5],  # Lottery Date
                 f"{row[6]:,.2f}",  # Total Price
+                row[7] # buy date
             ]
             
             for col_index, value in enumerate(formatted_row): # วนรูปสร้าง label ในตาราง
@@ -4359,7 +4374,7 @@ class main:
         ]))
 
         # สร้างหัวตาราง
-        header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price']
+        header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price','Buy Date']
         data = [header_labels]
 
         # นำข้อมูลมาเก็บ list
@@ -4371,7 +4386,8 @@ class main:
                 f"{row[3]:,.2f}",  # Price 
                 f"{row[4]:,.2f}",  # Amount 
                 row[5],  # Lottery Date
-                f"{row[6]:,.2f}",  # Total Price 
+                f"{row[6]:,.2f}",  # Total Price
+                row[7]  # buy date
             ])
         conn.close()
 
