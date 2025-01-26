@@ -12,7 +12,6 @@ import io
 from io import BytesIO
 import uuid
 from tkinter import filedialog
-import random
 import api_payment
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -735,6 +734,14 @@ class main:
 
             try:
                 search = et_search.get()
+                
+                # ตรวจสอบว่าค่า search มี 6 หลัก
+                if len(search) == 6:
+                    search_front = search[:3]  # เลขหน้า 3 หลัก
+                    search_end = search[-3:]  # เลขท้าย 3 หลัก
+                else:
+                    search_front = search  # หากไม่ใช่ 6 หลัก ใช้ search เดิม
+                    search_end = search
                 # รับค่าค้นหา
                 results1 = []
                 # ใช้คำสั่ง SQL พร้อม CAST
@@ -748,7 +755,7 @@ class main:
                         
                        
                 """
-                self.c.execute(query1, ('%' + search + '%', '%' + search + '%', '%' + search + '%'))
+                self.c.execute(query1, ('%' + search_front + '%', '%' + search_end + '%', '%' + search + '%'))
                 results1 = self.c.fetchall()
 
                 # ตรวจสอบผลลัพธ์
@@ -795,60 +802,9 @@ class main:
                 
                 self.conn.close()
 
-
-
-        def random_lottery():
-            self.conn = sqlite3.connect('data.db')
-            self.c = self.conn.cursor()
-
-            try:
-                # ดึงข้อมูลทั้งหมดจากฐานข้อมูล
-                self.c.execute('SELECT img_lottery, amount, price, type_lottery, num_id FROM lottery')
-                results2 = self.c.fetchall()
-
-                # กรองข้อมูลตามประเภทลอตเตอรี่ที่เลือก
-                if self.oddLot:
-                    results2 = [item for item in results2 if item[3] == "หวยเดี่ยว"]  # กรองเฉพาะหวยเดี่ยว
-                elif self.pairLot:
-                    results2 = [item for item in results2 if item[3] == "หวยชุด"]  # กรองเฉพาะหวยชุด
-
-                # ตรวจสอบว่ามีข้อมูลที่จะแสดงหรือไม่
-                if not results2:
-                    self.clear_frameItem_con()
-                    not_found = tk.Label(
-                        self.frame_item_con, text="ไม่พบลอตเตอรี่",
-                        font=('Prompt', 16), fg='red', bg='white'
-                    )
-                    not_found.place(x=330, y=20)
-                    return
-
-                # สุ่มข้อมูลจากผลลัพธ์ที่กรองแล้ว
-                random_item = random.choice(results2)
-                img_data, amount_data, price_data, typelot_data, num_lottery = random_item
-
-                # เก็บข้อมูลสุ่มลงในตัวแปรที่เกี่ยวข้อง
-                if self.oddLot:
-                    self.oddlottery_data = [random_item]  # เก็บข้อมูลทั้งหมดที่สุ่มมา
-                elif self.pairLot:
-                    self.pairlottery_data = [random_item]
-                elif self.allLot:
-                    self.alllottery_data = [random_item]
-
-                # : เพิ่มฟังก์ชันแสดงผลข้อมูลสุ่ม
-                self.store_loterry(img_data, amount_data, price_data, typelot_data, num_lottery)
-
-            except Exception as e:
-                print(f"เกิดข้อผิดพลาด: {e}")
-            finally:
-                self.conn.close()
-
         search_btn = ctk.CTkButton(self.search_con, text='ค้นหา', font=('Prompt', 12),
                                 fg_color='#2b2b2b', width=50, height=32, hover_color="#000000", command=findlot)
         search_btn.place(x=210, y=3)
-
-        random_btn = ctk.CTkButton(self.search_con, text='สุ่ม', font=('Prompt', 12),
-                                fg_color='#2b2b2b', width=50, height=32, hover_color="#000000", command=random_lottery)
-        random_btn.place(x=270, y=3)
 
         # ปุ่มหวย - วางใน button_frame
         self.allLot_btn = ctk.CTkButton(self.button_frame, text='ทั้งหมด', font=('Prompt', 12), width=84, height=35,
@@ -867,9 +823,7 @@ class main:
         self.frame_item_con = ctk.CTkFrame(self.main_con, fg_color='white', width=900, height=1000)
         self.frame_item_con.grid(row=3, column=0, sticky=NSEW, padx=5)
         
-
         self.allLot()
-
         
     def allLot(self):
         self.clear_frameItem_con()
