@@ -3727,12 +3727,12 @@ class main:
         image_data = self.fetch_image_from_db(user_order)  
 
         if image_data:
-            img = Image.open(io.BytesIO(image_data))
+            img = Image.open(io.BytesIO(image_data)) #แปลงรูปเป็น binary
             img.thumbnail((250, 550))  
-            self.img_tk = ImageTk.PhotoImage(img)
+            self.img_tk = ImageTk.PhotoImage(img) #แปลงรูป
 
             # สร้าง Label เพื่อแสดงภาพ
-            image_label = ctk.CTkLabel(self.greyframebg_edit_save, text='', image=self.img_tk)
+            image_label = tk.Label(self.greyframebg_edit_save, text='', image=self.img_tk)
             image_label.place(x=40, y=70)
 
         id_label = ctk.CTkLabel(self.greyframebg_edit_save, text="ID", font=('Kanit Regular', 16))
@@ -3846,7 +3846,7 @@ class main:
         lottery_date = new_data[8]
 
         try:
-            if status_save in ("ชำระเงินแล้ว", "ยังไม่ชำระ"):
+            if status_save in ("ชำระเงินแล้ว", "ยังไม่ชำระ","การชำระไม่ถูกต้อง"):
                 cursor.execute(''' 
                     UPDATE save
                     SET status_save=? 
