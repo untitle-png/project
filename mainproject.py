@@ -22,7 +22,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.colors import HexColor
@@ -4233,10 +4233,10 @@ class main:
         self.admin_container_revenue.place(x=100, y=0, relwidth=1, relheight=1)
 
         self.whiteframebg_revenue = ctk.CTkFrame(self.admin_container_revenue, corner_radius=15, width=900, height=500, fg_color='#fbf5f5')
-        self.whiteframebg_revenue.place(x=50,y=50)
+        self.whiteframebg_revenue.place(x=50, y=50)
 
         now = datetime.now()
-        month_name = self.thai_months[now.month-1]  
+        month_name = self.thai_months[now.month - 1]
         current_date = self.get_thai_date()
 
         # คำนวณยอดขายรวม
@@ -4251,32 +4251,38 @@ class main:
         heading_right = ctk.CTkLabel(self.whiteframebg_revenue, text=f"ยอดรวม: {saled_total}", font=('Arial', 12))
         heading_right.grid(row=1, column=3, padx=10, pady=5, sticky="e")
 
-        # ปรับขนาด scroll_canvas ให้พอดีกับกรอบ
+        # ComboBox สำหรับค้นหา
+        ctk.CTkLabel(self.whiteframebg_revenue, text="เลือกวัน/เดือน/ปี:", font=('Arial', 12)).grid(row=2, column=0, padx=10, pady=5, sticky="e")
+
+        self.day_combo = ctk.CTkComboBox(self.whiteframebg_revenue, values=list(map(str, range(1, 32))), width=80, state="readonly")
+        self.day_combo.grid(row=2, column=1, padx=5, pady=5)
+
+        self.month_combo = ctk.CTkComboBox(self.whiteframebg_revenue, values=self.thai_months, width=150, state="readonly")
+        self.month_combo.grid(row=2, column=2, padx=5, pady=5)
+
+        current_year = datetime.now().year
+        self.year_combo = ctk.CTkComboBox(self.whiteframebg_revenue, values=list(map(str, range(current_year, 2015, -1))), width=80, state="readonly")
+        self.year_combo.grid(row=2, column=3, padx=5, pady=5)
+
+        search_btn = ctk.CTkButton(self.whiteframebg_revenue, text="ค้นหา", font=('Arial', 12), command=self.search_revenue_page)
+        search_btn.grid(row=2, column=4, padx=10, pady=5)
+
+        # Remaining Code for Scrollable Table
         self.scroll_canvas_revenue = tk.Canvas(self.whiteframebg_revenue, bg='white', highlightthickness=0, width=850, height=300)
-        self.scroll_canvas_revenue.grid(row=3, column=0, columnspan=4, pady=10, sticky="nsew")  
+        self.scroll_canvas_revenue.grid(row=3, column=0, columnspan=5, pady=10, sticky="nsew")
 
         self.v_scrollbar = ctk.CTkScrollbar(self.whiteframebg_revenue, orientation='vertical', command=self.scroll_canvas_revenue.yview)
-        self.v_scrollbar.grid(row=3, column=4, sticky="ns")
+        self.v_scrollbar.grid(row=3, column=5, sticky="ns")
 
         self.h_scrollbar = ctk.CTkScrollbar(self.whiteframebg_revenue, orientation='horizontal', command=self.scroll_canvas_revenue.xview)
-        self.h_scrollbar.grid(row=4, column=0, columnspan=4, sticky="ew")
+        self.h_scrollbar.grid(row=4, column=0, columnspan=5, sticky="ew")
 
         self.scroll_canvas_revenue.configure(yscrollcommand=self.v_scrollbar.set, xscrollcommand=self.h_scrollbar.set)
 
-        # สร้าง scrollable_frame ด้วยขนาดที่เหมาะสม
         self.scrollable_frame_revenue = tk.Frame(self.scroll_canvas_revenue, bg='#ffffff', width=850, height=300)
         self.scroll_canvas_revenue.create_window((0, 0), window=self.scrollable_frame_revenue, anchor='nw')
 
-        # ปรับ scrollregion ให้ครอบคลุมพื้นที่ทั้งหมดของ scrollable_frame
         self.scrollable_frame_revenue.bind("<Configure>", lambda e: self.scroll_canvas_revenue.configure(scrollregion=self.scroll_canvas_revenue.bbox("all")))
-        
-        # ฟังก์ชันเลื่อนด้วยเมาส์และคีย์บอร์ด
-        self.scroll_canvas_revenue.bind_all("<MouseWheel>", self.on_mouse_scroll)
-        self.scroll_canvas_revenue.bind_all("<Shift-MouseWheel>", self.on_horizontal_scroll)  # Shift+Scroll สำหรับแนวนอน
-        self.scroll_canvas_revenue.bind_all("<Up>", self.on_arrow_scroll)
-        self.scroll_canvas_revenue.bind_all("<Down>", self.on_arrow_scroll)
-        self.scroll_canvas_revenue.bind_all("<Left>", self.on_arrow_scroll)
-        self.scroll_canvas_revenue.bind_all("<Right>", self.on_arrow_scroll)    
 
         conn = sqlite3.connect('data.db')
         cursor = conn.cursor()
@@ -4284,12 +4290,70 @@ class main:
         rows = cursor.fetchall()
 
         header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price', 'Buy date']
-        for col, header in enumerate(header_labels): #  วนลูปแต่ละชื่อ สร้าง label header
+        for col, header in enumerate(header_labels):
             header_label = ctk.CTkLabel(self.scrollable_frame_revenue, text=header, font=('Arial', 12, 'bold'), width=120)
             header_label.grid(row=0, column=col, padx=10, pady=5)
 
-            
-        for row_index, row in enumerate(rows, start=1): #วนรูปข้อมูลใน rows  
+        for row_index, row in enumerate(rows, start=1):
+            formatted_row = [
+                row[0],
+                row[1],
+                row[2],
+                f"{row[3]:,.2f}",
+                f"{row[4]:,.2f}",
+                row[5],
+                f"{row[6]:,.2f}",
+                row[7]
+            ]
+
+            for col_index, value in enumerate(formatted_row):
+                cell_label = ctk.CTkLabel(self.scrollable_frame_revenue, text=value, font=('Arial', 10), width=120)
+                cell_label.grid(row=row_index, column=col_index, padx=10, pady=5)
+
+        conn.close()
+
+        export_btn = ctk.CTkButton(self.whiteframebg_revenue, text="นำออกเป็น pdf", font=('Kanit Regular', 16), fg_color='black', command=self.export_revenue_pdf)
+        export_btn.grid(row=5, column=0, columnspan=4, pady=20)
+
+    def search_revenue_page(self):
+        # รับค่าที่เลือกจาก ComboBox
+        selected_day = self.day_combo.get()
+        selected_month = self.month_combo.get()
+        selected_year = self.year_combo.get()
+
+        # สร้างคำค้นหา (Thai-formatted date string)
+        search_date_parts = []
+        if selected_day:
+            search_date_parts.append(selected_day)
+        if selected_month:
+            search_date_parts.append(selected_month)
+        if selected_year:
+            search_date_parts.append(selected_year)
+
+        search_date = "-".join(search_date_parts)  # รวมวันที่ในรูปแบบ "1-มกราคม-2025"
+
+        # ค้นหาในฐานข้อมูล
+        conn = sqlite3.connect('data.db')
+        cursor = conn.cursor()
+
+        # สร้าง SQL Query โดยใช้ LIKE
+        query = "SELECT * FROM revenue_report WHERE buy_date LIKE ?"
+        cursor.execute(query, (f"%{search_date}%",))
+        rows = cursor.fetchall()
+        conn.close()
+
+        # ล้างข้อมูลในตารางเดิม
+        for widget in self.scrollable_frame_revenue.winfo_children():
+            widget.destroy()
+
+        # เพิ่ม Header กลับมา
+        header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price', 'Buy date']
+        for col, header in enumerate(header_labels):
+            header_label = ctk.CTkLabel(self.scrollable_frame_revenue, text=header, font=('Arial', 12, 'bold'), width=120)
+            header_label.grid(row=0, column=col, padx=10, pady=5)
+
+        # แสดงผลลัพธ์ในตาราง
+        for row_index, row in enumerate(rows, start=1):
             formatted_row = [
                 row[0],  # ID
                 row[1],  # Order Code
@@ -4298,17 +4362,15 @@ class main:
                 f"{row[4]:,.2f}",  # Amount
                 row[5],  # Lottery Date
                 f"{row[6]:,.2f}",  # Total Price
-                row[7] # buy date
+                row[7]  # Buy date
             ]
-            
-            for col_index, value in enumerate(formatted_row): # วนรูปสร้าง label ในตาราง
+
+            for col_index, value in enumerate(formatted_row):
                 cell_label = ctk.CTkLabel(self.scrollable_frame_revenue, text=value, font=('Arial', 10), width=120)
                 cell_label.grid(row=row_index, column=col_index, padx=10, pady=5)
 
-        conn.close()
-
-        export_btn = ctk.CTkButton(self.whiteframebg_revenue, text="นำออกเป็น pdf", font=('Kanit Regular', 16), fg_color='black', command=self.export_revenue_pdf)
-        export_btn.grid(row=5, column=0, columnspan=4, pady=20)  
+        # อัปเดต scroll region
+        self.scroll_canvas_revenue.configure(scrollregion=self.scroll_canvas_revenue.bbox("all"))
 
 
     def calculate_saled_total(self):
@@ -4325,99 +4387,121 @@ class main:
         return f"฿{total:,.2f}"  
     
     def export_revenue_pdf(self):
-        # หาลง angsananew
+        # หาลง AngsanaNew
         pdfmetrics.registerFont(TTFont('AngsanaNew', r'C:\Windows\Fonts\ANGSANA.ttc'))
 
         # ที่อยู่ไฟล์
-        file_path = f"D:/download/revenue_{self.month}.pdf"
+        file_path = f"D:/download/revenue_{search_date_text}.pdf"
 
         # ตรวจว่าซ้ำไหม
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
 
         # สร้าง pdf
-        pdf = SimpleDocTemplate(file_path, pagesize=letter) # ขนาดกระดาษ Letter 8.5 นิ้ว × 11 นิ้ว
+        pdf = SimpleDocTemplate(file_path, pagesize=letter)
 
-        # เชื่อม database
+        # ดึงข้อมูลจากการค้นหา
         conn = sqlite3.connect('data.db')
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM revenue_report')
+
+        # ตรวจสอบค่าการค้นหา
+        search_conditions = []
+        search_params = []
+
+        if self.day_combo.get():
+            search_conditions.append("buy_date LIKE ?")
+            search_params.append(f"{self.day_combo.get().zfill(2)}-%")  # เติม 0 ข้างหน้าและกรองตามวัน
+        if self.month_combo.get():
+            # ใช้ self.thai_months ในการค้นหาตำแหน่งของเดือนที่เลือก
+            month_name = self.month_combo.get()  # เดือนที่เลือกจาก ComboBox
+            if month_name in self.thai_months:
+                month_index = self.thai_months.index(month_name) + 1  # +1 เพื่อให้ตรงกับเดือนจริง (1-12)
+                search_conditions.append("buy_date LIKE ?")
+                search_params.append(f"%-{month_name}-%")  # กรองตามชื่อเดือน
+            else:
+                print(f"เดือน {month_name} ไม่พบในรายการเดือนไทย")
+                return  # ออกจากฟังก์ชันถ้าไม่พบเดือน
+        if self.year_combo.get():
+            search_conditions.append("buy_date LIKE ?")
+            search_params.append(f"%-{self.year_combo.get()}")  # กรองตามปี
+
+        # สร้าง SQL Query สำหรับเงื่อนไขที่เลือก
+        if search_conditions:
+            query = f"SELECT * FROM revenue_report WHERE {' AND '.join(search_conditions)}"
+            cursor.execute(query, search_params)
+        else:
+            query = "SELECT * FROM revenue_report"
+            cursor.execute(query)
+
         rows = cursor.fetchall()
+        conn.close()
 
-        # นำเข้าวันปัจจุบัน
+        # คำนวณยอดรวมจากข้อมูลที่กรอง
+        total_price = sum(row[6] for row in rows)  # คำนวน total_price จาก column ที่ 6
+
+        # กำหนดวันที่ปัจจุบัน
         now = datetime.now()
-        month_name = self.thai_months[now.month - 1]  #เดือนไทย
-        current_date = self.get_thai_date()  # เอาวันเดือนปีที่จัดไว้ใน get_that_date มาใช้
+        current_date = self.get_thai_date()  # ใช้ฟังก์ชันสำหรับวันที่ในรูปแบบไทย
 
-        # คำนวณ total sale
-        saled_total = self.calculate_saled_total()
-       
-        # จัดหัวกระดาษ
+        # กำหนดหัวข้อรายงาน
+        search_date_parts = []
+        if self.day_combo.get():
+            search_date_parts.append(self.day_combo.get())
+        if self.month_combo.get():
+            search_date_parts.append(self.month_combo.get())  # ใช้ชื่อเดือนจาก self.month_combo.get()
+        if self.year_combo.get():
+            search_date_parts.append(self.year_combo.get())
+        search_date_text = " ".join(search_date_parts) if search_date_parts else "ทั้งหมด"
+
         heading_center = Paragraph(
-            f"รายงานผลประกอบการประจำเดือน {month_name}<br/>ของ AllLottery",
-            ParagraphStyle(name='CenterHeading', fontName='AngsanaNew', fontSize=16, alignment=1, leading=24, spaceAfter=6) # alignment=1 (กลาง) ระยะ 24 pixel ห่าง 6
+            f"รายงานผลประกอบการสำหรับ {search_date_text}<br/>ของ AllLottery",
+            ParagraphStyle(name='CenterHeading', fontName='AngsanaNew', fontSize=16, alignment=1, leading=24, spaceAfter=6)
         )
         heading_left = Paragraph(f"ผู้พิมพ์: admin<br/>PRINT DATE: {current_date}", ParagraphStyle(name='LeftHeading', fontName='AngsanaNew', fontSize=12))
-        heading_right = Paragraph(f"ยอดรวม: {saled_total} บาท", ParagraphStyle(name='RightHeading', fontName='AngsanaNew', fontSize=12))
+        heading_right = Paragraph(f"ยอดรวม: {total_price:,.2f} บาท", ParagraphStyle(name='RightHeading', fontName='AngsanaNew', fontSize=12))
 
-        # จัดวางในหัวกระดาษ
-        header_data = [[heading_left, heading_right]]  # สร้างข้อมูลในตาราง 
-        header_table = Table(header_data, colWidths=[300, 100])  
-
-        # ปรับแต่ง TableStyle
-        header_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),  # จัดแนวตั้งให้ชิดด้านบน แถว 0 คอลัม0 ถึงตำแหน่ง -1,-1 ท้าย
-            ('FONTNAME', (0, 0), (-1, -1), 'AngsanaNew'),  # ฟอนต์
-            ('FONTSIZE', (0, 0), (-1, -1), 12),  # ขนาดฟอนต์
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),  # เพิ่ม padding ด้านล่างห่าง 6
-            ('TOPPADDING', (0, 0), (-1, 0), 6),  # เพิ่ม padding ด้านบนห่าง 6
-        ]))
-
-        # สร้างหัวตาราง
-        header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price','Buy Date']
+        # ตารางข้อมูล
+        header_labels = ['ID', 'Order Code', 'Lottery ID', 'Price', 'Amount', 'Lottery Date', 'Total Price', 'Buy Date']
         data = [header_labels]
 
-        # นำข้อมูลมาเก็บ list
+        # เพิ่มข้อมูลลงในตาราง
         for row in rows:
             data.append([
                 row[0],  # ID
                 row[1],  # Order Code
                 row[2],  # Lottery ID
-                f"{row[3]:,.2f}",  # Price 
-                f"{row[4]:,.2f}",  # Amount 
+                f"{row[3]:,.2f}",  # Price
+                f"{row[4]:,.2f}",  # Amount
                 row[5],  # Lottery Date
                 f"{row[6]:,.2f}",  # Total Price
-                row[7]  # buy date
+                row[7]  # Buy Date
             ])
-        conn.close()
 
-        # ตารางเก็บข้อมูล
-        table = Table(data, colWidths=[50, 80, 80, 80, 80, 100, 100])  # ปรับขนาดความกว้างตาราง
+        table = Table(data, colWidths=[30, 50, 50, 50, 50, 80, 80])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), HexColor('#DAE9F7')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'), # จัดขนาดเป็น center ตรงแถว 0 คอ 0 ถึง แถวท้าย คอท้าย
-            ('ALIGN', (2, 1), (2, -1), 'CENTER'),
-            ('ALIGN', (3, 1), (3, -1), 'CENTER'),
-            ('ALIGN', (4, 1), (4, -1), 'CENTER'),
-            ('ALIGN', (5, 1), (5, -1), 'CENTER'),
-            ('ALIGN', (6, 1), (6, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, -1), 'AngsanaNew'),
             ('FONTSIZE', (0, 0), (-1, -1), 12),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black), # เส้นกริดหนา 1 สีดำ
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
         ]))
 
-        # สร้างไฟล์ pdf
-        pdf.build([heading_center, header_table, table])
+        # เพิ่มระยะห่างด้วย Spacer
+        spacer = Spacer(1, 20)
+
+        # สร้าง PDF
+        pdf.build([heading_center, heading_left, heading_right, spacer, table])
         print(f"รายงานถูกสร้างเรียบร้อย: {file_path}")
 
-        # เปิดไฟล์ pdf
+        # เปิดไฟล์ PDF
         try:
             os.startfile(file_path)
         except Exception as e:
             print(f"ไม่สามารถเปิดไฟล์ PDF ได้: {e}")
-      
+
+        
 if __name__ == "__main__":
     root = tk.Tk()
     app = main(root)
