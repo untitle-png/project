@@ -17,6 +17,7 @@ import base64
 import pandas as pd
 import time
 import threading
+import shutil
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase.ttfonts import TTFont
@@ -3629,8 +3630,8 @@ class main:
         prize_type_label.place(x=100, y=200)
 
         self.prize_type_entry = ttk.Combobox(greyframebg, values=["รางวัลที่ 1","รางวัลที่ 2","รางวัลที่ 3", "รางวัลที่ 4", "รางวัลที่ 5", 
-                                                                       "รางวัลข้างเคียงรางวัลที่หนึ่ง", "รางวัลเลขหน้า 3 ตัว เสี่ยง 2 ครั้ง", 
-                                                                       "รางวัลเลขท้าย 3 ตัว เสี่ยง 2 ครั้ง", "รางวัลเลขท้าย 2 ตัว เสี่ยง 1 ครั้ง"],width=40)
+                                                                       "รางวัลข้างเคียงรางวัลที่หนึ่ง", "รางวัลเลขหน้า 3 ตัว", 
+                                                                       "รางวัลเลขท้าย 3 ตัว", "รางวัลเลขท้าย 2 ตัว"],width=40)
         self.prize_type_entry.place(x=350, y=200)
 
         prize_amount_label = ctk.CTkLabel(greyframebg, text="จำนวนเงินรางวัล", font=('Kanit Regular', 16))
@@ -3889,8 +3890,8 @@ class main:
         win_prize_label.place(x=350, y=420)  
         self.win_prize_combobox = ctk.CTkComboBox(self.greyframebg_edit_save, values=[
             "รอดำเนินการ","รอประกาศผล", "ไม่ถูกรางวัล","รางวัลที่ 1", "รางวัลที่ 2", "รางวัลที่ 3", "รางวัลที่ 4", "รางวัลที่ 5",
-            "รางวัลข้างเคียงรางวัลที่หนึ่ง", "รางวัลเลขหน้า 3 ตัว เสี่ยง 2 ครั้ง", 
-            "รางวัลเลขท้าย 3 ตัว เสี่ยง 2 ครั้ง", "รางวัลเลขท้าย 2 ตัว เสี่ยง 1 ครั้ง"
+            "รางวัลข้างเคียงรางวัลที่หนึ่ง", "รางวัลเลขหน้า 3 ตัว", 
+            "รางวัลเลขท้าย 3 ตัว", "รางวัลเลขท้าย 2 ตัว"
         ], width=270)
         self.win_prize_combobox.place(x=500, y=420)
         self.win_prize_combobox.set(selected_save[7])
@@ -3909,16 +3910,104 @@ class main:
         back_btn.place(x=550, y=520)
 
     def slip_transfer_edit(self):
-            self.slip_transfer_page = tk.Toplevel(self.admin_store)
-            self.slip_transfer_page.geometry('400x600')
-            self.slip_transfer_page.title('โอนเงิน')
+        # สร้างหน้าต่างใหม่
+        self.slip_transfer_page = tk.Toplevel(self.admin_store)
+        self.slip_transfer_page.geometry('400x600')
+        self.slip_transfer_page.title('โอนเงิน')
 
+        # เชื่อมต่อฐานข้อมูล
+        self.conn = sqlite3.connect('data.db')
+        self.c = self.conn.cursor()
+
+        # ดึงข้อมูลจากฐานข้อมูลที่เชื่อมโยงกับ username
+        self.c.execute('SELECT * FROM save WHERE username_save = ?', (self.username,))
+        d = self.c.fetchone()  # ใช้ fetchone() แทน fetchall() หากดึงข้อมูลรายการเดียว
+
+        self.conn.close()
+
+        def select_slip():
+            global img_slip2
+            file_path = filedialog.askopenfilename(
+                title="แนบสลิป",
+                filetypes=(("JPEG files", "*.jpg"), ("All files", "*.*")))
+
+            if file_path:
+                self.file_path = file_path
+                img = Image.open(file_path)
+                img = img.resize((200, 280))  # ปรับขนาดภาพให้พอดีกับหน้าจอ
+                img_slip2 = ctk.CTkImage(img, size=(200, 280))
+
+                # แปลงภาพเป็นไบนารี
+                with io.BytesIO() as output:
+                    global img_binary_slip2
+                    img.save(output, format="PNG")  # บันทึกเป็น PNG ในหน่วยความจำ
+                    img_binary_slip2 = output.getvalue()  # ดึงข้อมูลไบนารี
+
+                # แสดงสลิป
+                show_slip = ctk.CTkLabel(self.slip_transfer_page, image=img_slip2, width=200, height=280, text='')
+                show_slip.grid(row=2, column=0, sticky='nsew', pady=5, padx=100)
+
+                # ปุ่มยืนยันการโอน
+                confirm_btn = ctk.CTkButton(self.slip_transfer_page, text='ยืนยันการโอนเงิน', font=('Prompt', 14),
+                                            height=40, width=20,
+                                            command=self.save_slip)
+                confirm_btn.grid(row=3, column=0, sticky='nsew', pady=5, padx=100)
+
+        # แสดงปุ่มแนบสลิป
+        file_btn = ctk.CTkButton(self.slip_transfer_page, text='แนบสลิป', font=('Kanit Regular', 16),
+                                height=40, width=20,
+                                command=select_slip)
+        file_btn.grid(row=1, column=0, sticky='nsew', pady=5, padx=100)
+
+    def save_slip(self):
+        selected_item = self.save_tree.selection()
+        selected_save = self.save_tree.item(selected_item, "values")
+        try:
+            # เชื่อมต่อกับฐานข้อมูลเพื่อบันทึกข้อมูลสลิป
             self.conn = sqlite3.connect('data.db')
             self.c = self.conn.cursor()
-            self.c.execute('SELECT * FROM save WHERE username_save = ?', (self.username,))
-            d = self.c.fetchone()  # ใช้ fetchone() แทน fetchall() หากดึงข้อมูลรายการเดียว
-            
+
+            # ตรวจสอบค่าของ img_binary_slip2
+            if not img_binary_slip2:
+                print("Error: No slip image to save.")
+                return
+
+            # ตรวจสอบค่าของ order_code
+            if not selected_save[6]:
+                print("Error: No order_code found.")
+                return
+
+            print(f"Saving slip for order_code: {selected_save[6]}")
+
+            # อัปเดตข้อมูล img_lottery_save ในตาราง save ที่มี order_code เดียวกัน
+            self.c.execute('''
+                UPDATE save 
+                SET slip_order = ? 
+                WHERE order_code = ?
+            ''', (img_binary_slip2, selected_save[6]))
+
+            self.conn.commit()  # บันทึกการเปลี่ยนแปลง
+
+            # ตรวจสอบว่ามีการบันทึกข้อมูลหรือไม่
+            if self.conn.total_changes > 0:
+                print("Slip saved successfully.")
+            else:
+                print("No changes made to the database.")
+
             self.conn.close()
+
+            # ปิดหน้าต่างการโอนเงิน
+            self.slip_transfer_page.destroy()
+            self.refresh_save_list()
+
+            # แจ้งเตือนการอัปโหลดสลิปสำเร็จ
+            messagebox.showinfo("สำเร็จ", "การอัปโหลดสลิปสำเร็จ!")
+
+        except Exception as e:
+            print(f"Error saving slip: {e}")
+            messagebox.showerror("ข้อผิดพลาด", "เกิดข้อผิดพลาดในการบันทึกสลิป")
+
+
 
     def load_save_data_to_edit(self, selected_save):
         self.id_save_entry.insert(0, selected_save[0])
@@ -4079,7 +4168,7 @@ class main:
                             num_result_str = str(num_result)
                             num_lottery_save_str = str(num_lottery_save)
 
-                            if prize_type == "รางวัลเลขหน้า 3 ตัว เสี่ยง 2 ครั้ง" and num_lottery_save_str[:3] == num_result_str[:3]:
+                            if prize_type == "รางวัลเลขหน้า 3 ตัว" and num_lottery_save_str[:3] == num_result_str[:3]:
                                 self.c.execute(
                                     '''UPDATE save SET status_save = ?, win_prize = ?, get_prize = ? WHERE num_lottery_save = ?''',
                                     ('ถูกรางวัล', prize_type, prize_amount, num_lottery_save)
@@ -4088,7 +4177,7 @@ class main:
                                 is_winner = True
                                 break
 
-                            elif prize_type == "รางวัลเลขท้าย 3 ตัว เสี่ยง 2 ครั้ง" and num_lottery_save_str[-3:] == num_result_str[-3:]:
+                            elif prize_type == "รางวัลเลขท้าย 3 ตัว" and num_lottery_save_str[-3:] == num_result_str[-3:]:
                                 self.c.execute(
                                     '''UPDATE save SET status_save = ?, win_prize = ?, get_prize = ? WHERE num_lottery_save = ?''',
                                     ('ถูกรางวัล', prize_type, prize_amount, num_lottery_save)
@@ -4097,7 +4186,7 @@ class main:
                                 is_winner = True
                                 break
 
-                            elif prize_type == "รางวัลเลขท้าย 2 ตัว เสี่ยง 1 ครั้ง" and num_lottery_save_str[-2:] == num_result_str[-2:]:
+                            elif prize_type == "รางวัลเลขท้าย 2 ตัว" and num_lottery_save_str[-2:] == num_result_str[-2:]:
                                 self.c.execute(
                                     '''UPDATE save SET status_save = ?, win_prize = ?, get_prize = ? WHERE num_lottery_save = ?''',
                                     ('ถูกรางวัล', prize_type, prize_amount, num_lottery_save)
