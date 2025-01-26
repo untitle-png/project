@@ -1745,7 +1745,7 @@ class main:
         receipt_canvas = ctk.CTkScrollableFrame(receipt_window, width=480, height=500, fg_color='white', scrollbar_button_color='white', scrollbar_button_hover_color='white')
         receipt_canvas.pack(pady=10, padx=10, fill="both", expand=True)
 
-        total_price = sum(price for (num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date) in save_data if order_code == order_code_data)
+        total_price = sum(price for (num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date, get_prize) in save_data if order_code == order_code_data)
 
         # ส่วนหัวของใบเสร็จ
         header_label = ctk.CTkLabel(receipt_canvas, text="ใบเสร็จชำระเงิน", font=("Kanit Regular", 20), text_color="black")
@@ -1820,7 +1820,7 @@ class main:
         c.setFont("AngsanaNew", 18)  # ใช้ฟอนต์ที่ลงทะเบียน
 
         # ข้อมูลที่จะแสดงใน PDF
-        total_price = sum(price for (num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date) in save_data if order_code == order_code_data)
+        total_price = sum(price for (num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date, get_prize) in save_data if order_code == order_code_data)
 
         # ส่วนหัวของใบเสร็จ
         c.drawString(200, 750, "ใบเสร็จชำระเงิน")
