@@ -1831,7 +1831,7 @@ class main:
         c.drawString(100, 690, "---------------------------------------------------------------")
         y_position = 670
         for save in save_data:
-            num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date = save
+            num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date , get_prize = save
             if order_code == order_code_data:
                 c.drawString(100, y_position, f"{amount}                    {num_lottery}                            {price:,.2f} บาท")
                 y_position -= 20 
