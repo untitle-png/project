@@ -4391,26 +4391,26 @@ class main:
         pdfmetrics.registerFont(TTFont('AngsanaNew', r'C:\Windows\Fonts\ANGSANA.ttc'))
 
         # ที่อยู่ไฟล์
-        file_path = f"D:/download/revenue_{search_date_text}.pdf"
+        file_path = f"D:/download/revenue_report.pdf"
 
-        # ตรวจว่าซ้ำไหม
+        # ตรวจว่ามี folder ไหม
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
 
         # สร้าง pdf
         pdf = SimpleDocTemplate(file_path, pagesize=letter)
 
-        # ดึงข้อมูลจากการค้นหา
+        # เชื่อมฐานข้อมูล เพื่อดึงข้อมูลจากการค้นหา
         conn = sqlite3.connect('data.db')
         cursor = conn.cursor()
 
-        # ตรวจสอบค่าการค้นหา
-        search_conditions = []
-        search_params = []
+        # เตรียมเงื่อนไขการค้นหา 
+        search_conditions = [] # เก็บเงื่อนไข
+        search_params = [] # เก็บค่าพารามิเตอร์ที่ใช้งาน
 
-        if self.day_combo.get():
+        if self.day_combo.get(): #ถ้าเลือกวันก็จะเพิ่มเข้าไปในช่องเก็บเงื่อนไข
             search_conditions.append("buy_date LIKE ?")
-            search_params.append(f"{self.day_combo.get().zfill(2)}-%")  # เติม 0 ข้างหน้าและกรองตามวัน
+            search_params.append(f"{self.day_combo.get()}-%")  # เติม 0 ข้างหน้าและกรองตามวัน
         if self.month_combo.get():
             # ใช้ self.thai_months ในการค้นหาตำแหน่งของเดือนที่เลือก
             month_name = self.month_combo.get()  # เดือนที่เลือกจาก ComboBox
@@ -4507,6 +4507,5 @@ if __name__ == "__main__":
     app = main(root)
     default_font = ("Prompt",8)  
     root.option_add("*Font", default_font)
-    root.option_add("*Foreground", "black")
 
     root.mainloop()
