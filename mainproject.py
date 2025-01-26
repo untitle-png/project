@@ -13,11 +13,6 @@ import uuid
 from tkinter import filedialog
 import random
 import api_payment
-import base64
-import pandas as pd
-import time
-import threading
-import shutil
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase.ttfonts import TTFont
