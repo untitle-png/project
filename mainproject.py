@@ -28,7 +28,6 @@ from reportlab.lib.colors import HexColor
 from tkinter import filedialog
 import os
 
-
 class main:
     def __init__(self, root):
         self.root = root
@@ -3814,6 +3813,9 @@ class main:
             image_label = tk.Label(self.greyframebg_edit_save, text='', image=self.img_tk)
             image_label.place(x=40, y=70)
 
+        slip_btn = ctk.CTkButton(self.greyframebg_edit_save, width=200, text="ใส่สลิปโอนเงิน", font=('Kanit Regular', 16), fg_color='black', command=self.slip_transfer_edit)
+        slip_btn.place(x=40, y=400)    
+
         id_label = ctk.CTkLabel(self.greyframebg_edit_save, text="ID", font=('Kanit Regular', 16))
         id_label.place(x=350, y=60)  
         self.id_save_entry = ctk.CTkEntry(self.greyframebg_edit_save, width=50)
@@ -3878,6 +3880,18 @@ class main:
 
         back_btn = ctk.CTkButton(self.greyframebg_edit_save, text="กลับ", font=('Kanit Regular', 16), fg_color='black', command=self.manage_save_admin_page)
         back_btn.place(x=550, y=520)
+
+    def slip_transfer_edit(self):
+            self.slip_transfer_page = tk.Toplevel(self.admin_store)
+            self.slip_transfer_page.geometry('400x600')
+            self.slip_transfer_page.title('โอนเงิน')
+
+            self.conn = sqlite3.connect('data.db')
+            self.c = self.conn.cursor()
+            self.c.execute('SELECT * FROM save WHERE username_save = ?', (self.username,))
+            d = self.c.fetchone()  # ใช้ fetchone() แทน fetchall() หากดึงข้อมูลรายการเดียว
+            
+            self.conn.close()
 
     def load_save_data_to_edit(self, selected_save):
         self.id_save_entry.insert(0, selected_save[0])
@@ -4274,7 +4288,6 @@ class main:
         except Exception as e:
             print(f"ไม่สามารถเปิดไฟล์ PDF ได้: {e}")
       
-
 if __name__ == "__main__":
     root = tk.Tk()
     app = main(root)
