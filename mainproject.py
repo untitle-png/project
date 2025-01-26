@@ -1636,7 +1636,7 @@ class main:
                         price = price
                         amount = amount
                         lottery_date = lottery_date
-                        total_price = price * amount
+                        total_price = price
                         current_date = self.get_thai_date()  
 
                         # เชื่อมต่อกับฐานข้อมูล
@@ -4242,7 +4242,7 @@ class main:
         # คำนวณยอดขายรวม
         saled_total = self.calculate_saled_total()
 
-        heading_center = ctk.CTkLabel(self.whiteframebg_revenue, text=f"รายงานผลประกอบการประจำเดือน {month_name} ของ AllLottery", font=('Arial', 16, 'bold'))
+        heading_center = ctk.CTkLabel(self.whiteframebg_revenue, text=f"รายงานผลประกอบการของ AllLottery", font=('Arial', 16, 'bold'))
         heading_center.grid(row=0, column=0, columnspan=4, pady=10)
 
         heading_left = ctk.CTkLabel(self.whiteframebg_revenue, text=f"ผู้พิมพ์: admin\n DATE: {current_date}", font=('Arial', 12))
@@ -4323,7 +4323,7 @@ class main:
 
         conn.close()
         return f"฿{total:,.2f}"  
-
+    
     def export_revenue_pdf(self):
         # หาลง angsananew
         pdfmetrics.registerFont(TTFont('AngsanaNew', r'C:\Windows\Fonts\ANGSANA.ttc'))
