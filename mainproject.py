@@ -221,8 +221,6 @@ class main:
         dev_label.image = dev_image_tk  
         dev_label.pack(pady=20)
 
-    def register(self):
-        pass
 
     def login(self):
         self.username = self.username_entry.get()
@@ -307,6 +305,7 @@ class main:
             height=8,justify='center'
         )
         self.dob_month.place(x=320, y=237,width=120)
+
         current_year = datetime.now().year
         self.dob_year = ttk.Combobox(self.signup_ui, values=list(range(current_year, 1923, -1)),
                                      width=6,justify='center', font=('Prompt', 8))
@@ -459,7 +458,6 @@ class main:
         
         
     #รวมเมนูต่างๆ    
-
         bar_icon = tk.Frame(self.store,background='#e32320',width=100,height=1080)
         bar_icon.place(x=0,y=0)
         
@@ -654,10 +652,6 @@ class main:
         self.main_con.bind("<Configure>", update_scroll_region)
         self.cart_page_con.bind("<Configure>", update_scroll_region)
         # ฟังก์ชันสำหรับการเลื่อนด้วย Scroll Wheel
-        def on_mouse_scroll(event):
-            self.scroll_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        
-        
 
         self.scroll_canvas.bind_all("<MouseWheel>", self.on_mouse_scroll) 
         self.scroll_canvas.bind_all("<Up>", self.on_mouse_scroll)# สำหรับ Windows
@@ -699,7 +693,6 @@ class main:
 
         self.ads_frame = ctk.CTkFrame(self.main_con, fg_color='#b91c1c', width=450, height=350, corner_radius=0)
         self.ads_frame.grid(row=0, column=0, pady=0, sticky='nsew')
-
         
         self.ads_item_con = ctk.CTkFrame(self.ads_frame, fg_color='#b91c1c', width=450, height=350, corner_radius=0)
         self.ads_item_con.grid(row=0, column=0, sticky='nsew')
@@ -1356,7 +1349,7 @@ class main:
         self.month = self.thai_months[now.month - 1]  
         year = now.year 
 
-        return f"{day}-{self.month}-{year}"
+        return f"{day}-{self.month}-{year}" 
 
     def clear_stock(self):
         try:
@@ -1638,7 +1631,7 @@ class main:
                     )
                     request_receipt_btn.grid(row=3, column=0, padx=150, pady=10, sticky="w")
                     
-                    wait_admin_label = ctk.CTkLabel( order_group, text="รอแอดมินโอนเงิน หาากยังไม่โอนภายใน3วัน แจ้ง 1669", font=('Kanit Regular', 12), text_color='#468847', bg_color='white')
+                    wait_admin_label = ctk.CTkLabel( order_group, text="รอแอดมินโอนเงิน หากยังไม่โอนภายใน3วัน แจ้ง 1669", font=('Kanit Regular', 12), text_color='#468847', bg_color='white')
                     wait_admin_label.grid(row=3, column=0,padx=450, pady=10, sticky="w")
                     
                     status_tranfer  = ctk.CTkButton(
@@ -2211,7 +2204,7 @@ class main:
             tkinter.messagebox.showinfo("ไม่มีการเปลี่ยนแปลง", "ไม่มีข้อมูลใดที่ถูกเปลี่ยนแปลง")
             return
 
-        update_values.append(self.user_id)
+        update_values.append(self.user_id) #เพิ่ม save user ไปใน update_values
 
         update_query = f"""
                 UPDATE users
@@ -2670,7 +2663,7 @@ class main:
             self.lottery_tree.delete(row) 
 
         for row in rows: # ลูปมาแสดงผล
-            self.lottery_tree.insert("", tk.END, values=row)
+            self.lottery_tree.iensrt("", tk.END, values=row)
 
         self.close_db()
     
