@@ -1772,7 +1772,7 @@ class main:
 
         # รายการลอตเตอรี่
         for i, save in enumerate(save_data):
-            num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date = save
+            num_lottery, img_lot, amount, price, status, order_code_data, win_prize, lottery_date, get_prize = save
             if order_code == order_code_data:
                 detail_label = ctk.CTkLabel(
                     table_frame,
