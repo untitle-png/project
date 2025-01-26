@@ -1711,6 +1711,7 @@ class main:
                     request_receipt_btn.grid(row=3, column=0, padx=150, pady=10, sticky="w")
                     
                 elif status =='โอนเงินแล้ว':
+                    label_price.configure(text=f"{get_prize:,.2f}")
                     request_receipt_btn = ctk.CTkButton(
                         order_group,
                         text="ขอใบเสร็จ",
