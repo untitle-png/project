@@ -1575,7 +1575,7 @@ class main:
 
                     column_attribute.columnconfigure(3, weight=1)
 
-                    column_list = ['หมายเลขลอตเตอรี่', 'จำนวน', 'ราคา', 'สถานะ/ผลรางวัล']
+                    column_list = ['หมายเลขลอตเตอรี่', 'จำนวน', 'ราคา(บาท)', 'สถานะ/ผลรางวัล']
                     for j, col in enumerate(column_list):
                         label = ctk.CTkLabel(column_attribute, text=col, font=('Kanit Regular', 16), text_color='black', bg_color='white')
                         label.grid(row=0, column=j+1, padx=60, pady=10, sticky='nsew')
@@ -1617,7 +1617,7 @@ class main:
                 label_amount = ctk.CTkLabel(save_list_con, text=f"x{amount}", font=('Kanit Regular', 16), text_color='#86868b', bg_color='white')
                 label_amount.grid(row=i, column=1, padx=80, pady=10, sticky='nsew')
 
-                label_price = ctk.CTkLabel(save_list_con, text=price, font=('Kanit Regular', 16), text_color='#86868b', bg_color='white')
+                label_price = ctk.CTkLabel(save_list_con, text=f"{price:,.2f}", font=('Kanit Regular', 16), text_color='#86868b', bg_color='white')
                 label_price.grid(row=i, column=2, padx=60, pady=10, sticky='nsew')
 
                 label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
@@ -3932,6 +3932,13 @@ class main:
                     WHERE order_code=?
                 ''', (status_save, order_code))
                 conn.commit()
+            if win_prize in ("รอดำเนินการ","รอประกาศผล"):
+                cursor.execute(''' 
+                    UPDATE save
+                    SET win_prize=? 
+                    WHERE order_code=?
+                ''', (win_prize, order_code))
+                conn.commit()
 
             cursor.execute(''' 
                 UPDATE save 
@@ -4002,8 +4009,6 @@ class main:
                 print("No results found.")
                 return
 
-            print(f"Results: {results}")
-
             # ดึงข้อมูลหมายเลขลอตเตอรี่ที่ผู้ใช้เก็บไว้จากตาราง save
             self.c.execute('''SELECT id, username_save, num_lottery_save, amount_save, price_save, status_save, order_code, win_prize, lottery_date, get_prize FROM save''')
             save_data = self.c.fetchall()
@@ -4025,6 +4030,40 @@ class main:
                         is_winner = True
                         break  # ออกจากลูปเพราะพบแล้วว่าถูกรางวัล
 
+                # ตรวจสอบรางวัลที่เกี่ยวข้อง เช่น เลขหน้า 3 ตัว, เลขท้าย 3 ตัว, เลขท้าย 2 ตัว
+                if not is_winner:
+                    for prize_type, num_result, draw_date in results:
+                        if draw_date == lottery_date:  # ตรวจสอบวันที่ก่อน
+                            num_result_str = str(num_result)
+                            num_lottery_save_str = str(num_lottery_save)
+
+                            if prize_type == "รางวัลเลขหน้า 3 ตัว เสี่ยง 2 ครั้ง" and num_lottery_save_str[:3] == num_result_str[:3]:
+                                self.c.execute(
+                                    '''UPDATE save SET status_save = ?, win_prize = ? WHERE num_lottery_save = ?''',
+                                    ('ถูกรางวัล', prize_type, num_lottery_save)
+                                )
+                                print(f"User with lottery {num_lottery_save} wins: {prize_type} (เลขหน้า 3 ตัว)")
+                                is_winner = True
+                                break
+
+                            elif prize_type == "รางวัลเลขท้าย 3 ตัว เสี่ยง 2 ครั้ง" and num_lottery_save_str[-3:] == num_result_str[-3:]:
+                                self.c.execute(
+                                    '''UPDATE save SET status_save = ?, win_prize = ? WHERE num_lottery_save = ?''',
+                                    ('ถูกรางวัล', prize_type, num_lottery_save)
+                                )
+                                print(f"User with lottery {num_lottery_save} wins: {prize_type} (เลขท้าย 3 ตัว)")
+                                is_winner = True
+                                break
+
+                            elif prize_type == "รางวัลเลขท้าย 2 ตัว เสี่ยง 1 ครั้ง" and num_lottery_save_str[-2:] == num_result_str[-2:]:
+                                self.c.execute(
+                                    '''UPDATE save SET status_save = ?, win_prize = ? WHERE num_lottery_save = ?''',
+                                    ('ถูกรางวัล', prize_type, num_lottery_save)
+                                )
+                                print(f"User with lottery {num_lottery_save} wins: {prize_type} (เลขท้าย 2 ตัว)")
+                                is_winner = True
+                                break
+
                 if not is_winner:
                     # ถ้าไม่มีการถูกรางวัลใด ๆ สำหรับหมายเลขนี้
                     self.c.execute(
@@ -4042,6 +4081,7 @@ class main:
             if self.conn:
                 self.conn.close()
         self.refresh_save_list()
+
 
         
 
