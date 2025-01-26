@@ -1717,6 +1717,17 @@ class main:
                     )
                     request_receipt_btn.grid(row=3, column=0, padx=150, pady=10, sticky="w")
                 elif status =='โอนเงินแล้ว':
+                    label_status.configure(text=f"{win_prize}", font=('Kanit Regular', 16), text_color='red', bg_color='white')
+                    request_receipt_btn = ctk.CTkButton(
+                        order_group,
+                        text="ขอใบเสร็จ",
+                        font=("Kanit Regular", 16),
+                        text_color="black",
+                        bg_color="white",
+                        command=lambda order_code=order_code, save_data=save_data: self.request_receipt(order_code, save_data)
+                    )
+                    request_receipt_btn.grid(row=3, column=0, padx=150, pady=10, sticky="w")
+
                     self.c.execute('''SELECT slip_order FROM save WHERE status_save  = ?''', ('โอนเงินแล้ว'))
                     slip_success = self.c.fetchone()
                     
@@ -1732,7 +1743,6 @@ class main:
                     
                     success_tranfer_label.configure(self.status_tranfer_page,image=img_slip)
                     success_tranfer_label.pack(pady=10)
-
 
             except Exception as e:
                 print(f"Error processing save data: {e}")
@@ -4410,20 +4420,15 @@ class main:
 
         if self.day_combo.get(): #ถ้าเลือกวันก็จะเพิ่มเข้าไปในช่องเก็บเงื่อนไข
             search_conditions.append("buy_date LIKE ?")
-            search_params.append(f"{self.day_combo.get()}-%")  # เติม 0 ข้างหน้าและกรองตามวัน
+            search_params.append(f"{self.day_combo.get()}-%")  # เก็บค่าพารามิเตอร์วันให้กรอกเป็น วัน-%-%
         if self.month_combo.get():
             # ใช้ self.thai_months ในการค้นหาตำแหน่งของเดือนที่เลือก
             month_name = self.month_combo.get()  # เดือนที่เลือกจาก ComboBox
-            if month_name in self.thai_months:
-                month_index = self.thai_months.index(month_name) + 1  # +1 เพื่อให้ตรงกับเดือนจริง (1-12)
-                search_conditions.append("buy_date LIKE ?")
-                search_params.append(f"%-{month_name}-%")  # กรองตามชื่อเดือน
-            else:
-                print(f"เดือน {month_name} ไม่พบในรายการเดือนไทย")
-                return  # ออกจากฟังก์ชันถ้าไม่พบเดือน
+            search_conditions.append("buy_date LIKE ?")
+            search_params.append(f"%-{month_name}-%")  # เก็บค่าพารามิเตอร์เดือนให้กรอกเป็น %-เดือน-%
         if self.year_combo.get():
             search_conditions.append("buy_date LIKE ?")
-            search_params.append(f"%-{self.year_combo.get()}")  # กรองตามปี
+            search_params.append(f"%-{self.year_combo.get()}")  # กรองตามปีเป็น %-%-ปี
 
         # สร้าง SQL Query สำหรับเงื่อนไขที่เลือก
         if search_conditions:
@@ -4479,19 +4484,19 @@ class main:
 
         table = Table(data, colWidths=[30, 50, 50, 50, 50, 80, 80])
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#DAE9F7')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#DAE9F7')), #ปรับสี bg ของ แถว 0 คอล 0 จดถึงแถวสุดท้ายของ คอล 0 เป็นสีฟ้า
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black), # สี text เป็นสีดำ
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'), # จัดตำแหน่งให้อยู่ตรงกลาง
             ('FONTNAME', (0, 0), (-1, -1), 'AngsanaNew'),
             ('FONTSIZE', (0, 0), (-1, -1), 12),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black), #สร้างเส้น grid ความหนา 1 pixel เป็นสีดำ
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12), # ระยะห่างขอบล่างห่าง 12
         ]))
 
-        # เพิ่มระยะห่างด้วย Spacer
-        spacer = Spacer(1, 20)
+        # เพิ่มระยะห่างระหว่างส่วนต่าง ๆ ของ PDF ด้วย spacer
+        spacer = Spacer(1, 20) #กว้าง 1 สูง 20
 
-        # สร้าง PDF
+        # สร้าง PDF โดยใช้ข้อมูลจากส่วนต่าง ๆ
         pdf.build([heading_center, heading_left, heading_right, spacer, table])
         print(f"รายงานถูกสร้างเรียบร้อย: {file_path}")
 
