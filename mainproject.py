@@ -1560,24 +1560,25 @@ class main:
                     order_groups[order_code] = order_group  # เก็บกลุ่มนี้ไว้ตาม order_code
                     order_group.rowconfigure(1, weight=1)  # กำหนดให้ row 0 ขยายตามความสูงของ Container
 
-                    order_box = ctk.CTkFrame(order_group, width=675,fg_color='white')
-                    order_box.grid(row=2, column=0, pady=10, sticky='nsew', padx=5, columnspan=2)
+                    order_box = ctk.CTkFrame(order_group, width=400,fg_color='white' )
+                    order_box.grid(row=2, column=0, pady=10, sticky='nsew', padx=0)
                     order_box.rowconfigure(i, weight=1)  # กำหนดให้ row 0 ขยายตามความสูงของ Container
                     
                     code_order_label = ctk.CTkLabel(order_group, text=f"รหัสสั่งซื้อ: {order_code}", font=('Kanit Regular', 16), text_color='black', bg_color='white')
                     code_order_label.grid(row=3, column=0, padx=15, pady=10, sticky='w')
 
-                    order_group.columnconfigure(4, weight=1)
+                    order_group.columnconfigure(4, weight=4)
 
-                    column_attribute = ctk.CTkFrame( order_group, width=680, height=120, fg_color='white')
-                    column_attribute.grid(row=0, column=0, padx=2, pady=8, sticky='nsew')
+                    column_attribute = ctk.CTkFrame( order_group, width=400, height=100, fg_color='white')
+                    column_attribute.grid(row=0, column=0, padx=12, pady=8, sticky='nw')
 
-                    column_attribute.columnconfigure(3, weight=1)
+                    column_attribute.columnconfigure(4, weight=2)
 
-                    column_list = ['หมายเลขลอตเตอรี่', 'จำนวน', 'ราคา(บาท)', 'สถานะ/ผลรางวัล']
+                    column_list = ['หมายเลขลอตเตอรี่', 'จำนวน', 'ราคา', 'สถานะ/ผลรางวัล']
                     for j, col in enumerate(column_list):
                         label = ctk.CTkLabel(column_attribute, text=col, font=('Kanit Regular', 16), text_color='black', bg_color='white')
                         label.grid(row=0, column=j+1, padx=60, pady=10, sticky='nsew')
+                        
                   # บันทึก index แถวปัจจุบันสำหรับรายการใน order_box
                     order_box.current_row = 0  # เพิ่มตัวแปรสำหรับติดตามแถวปัจจุบันใน order_box
        
@@ -1599,8 +1600,8 @@ class main:
                 line_frame.grid(row=1, column=0, pady=10, sticky='nsew', padx=8)
 
                 # สร้างรายการภายในกลุ่ม order_group
-                save_list_con = ctk.CTkFrame(order_box, width=800,height=100, bg_color='white', fg_color='white')
-                save_list_con.grid(row= order_box.current_row, column=0, pady=5, sticky='nsew', padx=12 )
+                save_list_con = ctk.CTkFrame(order_box, width=400,height=100, bg_color='white', fg_color='white')
+                save_list_con.grid(row= order_box.current_row, column=0, pady=5, sticky='nw', padx=12 )
                 save_list_con.columnconfigure(4, weight=1)
                 
                  # ปรับค่า current_row ของ order_box สำหรับรายการถัดไป
@@ -1616,10 +1617,12 @@ class main:
                 label_amount = ctk.CTkLabel(save_list_con, text=f"x{amount}", font=('Kanit Regular', 16), text_color='#86868b', bg_color='white')
                 label_amount.grid(row=i, column=1, padx=80, pady=10, sticky='nsew')
 
-                label_price = ctk.CTkLabel(save_list_con, text=f"{price:,.2f}", font=('Kanit Regular', 16), text_color='#86868b', bg_color='white')
+                label_price = ctk.CTkLabel(save_list_con, text=price, font=('Kanit Regular', 16), 
+                                           text_color='#86868b', bg_color='white',width=80)
                 label_price.grid(row=i, column=2, padx=60, pady=10, sticky='nsew')
 
-                label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='#468847', bg_color='white')
+                label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), 
+                                            text_color='#468847', bg_color='white',width=200)
                 label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
                
                 if status == 'ชำระเงินแล้ว': 
@@ -1673,8 +1676,9 @@ class main:
                     edit_slip_btn.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
                     
                 elif status == 'ถูกรางวัล':
-                    label_status = ctk.CTkLabel(save_list_con, text=f"ขอแสดงความยินดี\nคุณถูกรางวัล : {win_prize}", font=('Kanit Regular', 14), text_color='#468847', bg_color='white')
-                    label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
+                    label_status.configure(text=f"ขอแสดงความยินดี\nคุณถูกรางวัล : {win_prize}")
+                    label_status.grid(row=i, column=3, padx=0, pady=10, sticky='nsew')
+                    label_price.configure(text=f"{get_prize}")
                     request_receipt_btn = ctk.CTkButton(
                         order_group,
                         text="ขอใบเสร็จ",
@@ -1684,11 +1688,26 @@ class main:
                         command=lambda order_code=order_code, save_data=save_data: self.request_receipt(order_code, save_data)
                     )
                     request_receipt_btn.grid(row=3, column=0, padx=150, pady=10, sticky="w")
+                    
+                    wait_admin_label = ctk.CTkLabel( order_group, text="รอแอดมินโอนเงิน หาากยังไม่โอนภายใน3วัน แจ้ง 1669", font=('Kanit Regular', 12), text_color='#468847', bg_color='white')
+                    wait_admin_label.grid(row=3, column=0,padx=450, pady=10, sticky="w")
+                    
+                 
+                    
+                    status_tranfer  = ctk.CTkButton(
+                        order_group,
+                        text="สถานะการโอน",
+                        font=("Kanit Regular", 16),
+                        text_color="black",
+                        bg_color="white",
+                        command= self.status_tranfer_prizes
+                    )
+                    status_tranfer.grid(row=3, column=0, padx=300, pady=10, sticky="w")
 
                 
                 elif status == 'ไม่ถูกรางวัล':
                     label_status = ctk.CTkLabel(save_list_con, text=f"{win_prize}", font=('Kanit Regular', 16), text_color='red', bg_color='white')
-                    label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew')
+                    label_status.grid(row=i, column=3, padx=80, pady=10, sticky='nsew',columnspan=2)
                     request_receipt_btn = ctk.CTkButton(
                         order_group,
                         text="ขอใบเสร็จ",
@@ -1703,6 +1722,14 @@ class main:
             except Exception as e:
                 print(f"Error processing save data: {e}")
                 continue
+
+    def status_tranfer_prizes(self):
+        self.status_tranfer_page = tk.Toplevel(self.store)
+        self.status_tranfer_page.geometry('400x600')
+        
+        status_label = ctk.CTkLabel(self.status_tranfer_page, text="รอแอดมินโอนเงิน", font=('Kanit Regular', 20), text_color='black')
+        status_label.pack(pady=200)
+        pass
 
     def update_slip_status(self, order_code, img_binary_slip1):
         try:
@@ -4016,7 +4043,7 @@ class main:
             self.c = self.conn.cursor()
 
             # ดึงผลลัพธ์จากตาราง `results`
-            self.c.execute('''SELECT prize_type, lottery_number, draw_date FROM results''')
+            self.c.execute('''SELECT prize_type, lottery_number, draw_date, prize_amount FROM results''')
             results = self.c.fetchall()
 
             if not results:
@@ -4033,12 +4060,12 @@ class main:
                 lottery_date = save_item[8]
                 is_winner = False  # ใช้ตัวแปรเพื่อตรวจสอบว่าหมายเลขนี้ถูกรางวัลหรือไม่
 
-                for prize_type, num_result, draw_date in results:
+                for prize_type, num_result, prize_amount, draw_date in results:
                     if str(num_result) == str(num_lottery_save) and draw_date == lottery_date:
                         # ถ้าหมายเลขตรงและวันที่ตรง
                         self.c.execute(
-                            '''UPDATE save SET status_save = ?, win_prize = ? WHERE num_lottery_save = ?''',
-                            ('ถูกรางวัล', prize_type, num_lottery_save)
+                            '''UPDATE save SET status_save = ?, win_prize = ?,get_prize = ? WHERE num_lottery_save = ?''',
+                            ('ถูกรางวัล', prize_type, prize_amount ,num_lottery_save)
                         )
                         print(f"User with lottery {num_lottery_save} wins: {prize_type}")
                         is_winner = True
@@ -4046,15 +4073,15 @@ class main:
 
                 # ตรวจสอบรางวัลที่เกี่ยวข้อง เช่น เลขหน้า 3 ตัว, เลขท้าย 3 ตัว, เลขท้าย 2 ตัว
                 if not is_winner:
-                    for prize_type, num_result, draw_date in results:
+                    for prize_type, num_result, draw_date, prize_amount in results:
                         if draw_date == lottery_date:  # ตรวจสอบวันที่ก่อน
                             num_result_str = str(num_result)
                             num_lottery_save_str = str(num_lottery_save)
 
                             if prize_type == "รางวัลเลขหน้า 3 ตัว เสี่ยง 2 ครั้ง" and num_lottery_save_str[:3] == num_result_str[:3]:
                                 self.c.execute(
-                                    '''UPDATE save SET status_save = ?, win_prize = ? WHERE num_lottery_save = ?''',
-                                    ('ถูกรางวัล', prize_type, num_lottery_save)
+                                    '''UPDATE save SET status_save = ?, win_prize = ?,get_prize = ? WHERE num_lottery_save = ?''',
+                                    ('ถูกรางวัล', prize_type, prize_amount, num_lottery_save)
                                 )
                                 print(f"User with lottery {num_lottery_save} wins: {prize_type} (เลขหน้า 3 ตัว)")
                                 is_winner = True
@@ -4062,8 +4089,8 @@ class main:
 
                             elif prize_type == "รางวัลเลขท้าย 3 ตัว เสี่ยง 2 ครั้ง" and num_lottery_save_str[-3:] == num_result_str[-3:]:
                                 self.c.execute(
-                                    '''UPDATE save SET status_save = ?, win_prize = ? WHERE num_lottery_save = ?''',
-                                    ('ถูกรางวัล', prize_type, num_lottery_save)
+                                    '''UPDATE save SET status_save = ?, win_prize = ?,get_prize = ? WHERE num_lottery_save = ?''',
+                                    ('ถูกรางวัล', prize_type, prize_amount, num_lottery_save)
                                 )
                                 print(f"User with lottery {num_lottery_save} wins: {prize_type} (เลขท้าย 3 ตัว)")
                                 is_winner = True
@@ -4071,8 +4098,8 @@ class main:
 
                             elif prize_type == "รางวัลเลขท้าย 2 ตัว เสี่ยง 1 ครั้ง" and num_lottery_save_str[-2:] == num_result_str[-2:]:
                                 self.c.execute(
-                                    '''UPDATE save SET status_save = ?, win_prize = ? WHERE num_lottery_save = ?''',
-                                    ('ถูกรางวัล', prize_type, num_lottery_save)
+                                    '''UPDATE save SET status_save = ?, win_prize = ?,get_prize = ? WHERE num_lottery_save = ?''',
+                                    ('ถูกรางวัล', prize_type, prize_amount, num_lottery_save)
                                 )
                                 print(f"User with lottery {num_lottery_save} wins: {prize_type} (เลขท้าย 2 ตัว)")
                                 is_winner = True
@@ -4095,7 +4122,6 @@ class main:
             if self.conn:
                 self.conn.close()
         self.refresh_save_list()
-
 
         
 
